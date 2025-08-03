@@ -16,8 +16,8 @@ class Program
         var chunkingRules = PatternBasedStrategy.CreateDefaultRules();
         var chunkingStrategy = new PatternBasedStrategy(chunkingRules);
         
-        // Create a simple keyword extractor
-        var keywordExtractor = new SimpleKeywordExtractor();
+        // Create an ML.NET keyword extractor
+        var keywordExtractor = new MLNetKeywordExtractor();
         
         // Create the main chunker
         var chunker = new StructureChunker(chunkingStrategy, keywordExtractor);
