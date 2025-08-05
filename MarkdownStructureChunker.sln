@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Core", "MarkdownStructureChunker.Core\MarkdownStructureChunker.Core.csproj", "{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Demo", "MarkdownStructureChunker.Demo\MarkdownStructureChunker.Demo.csproj", "{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Tests", "MarkdownStructureChunker.Tests\MarkdownStructureChunker.Tests.csproj", "{071F0476-5AEE-478A-938A-61C36CE68549}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{071F0476-5AEE-478A-938A-61C36CE68549}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{071F0476-5AEE-478A-938A-61C36CE68549}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{071F0476-5AEE-478A-938A-61C36CE68549}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{071F0476-5AEE-478A-938A-61C36CE68549}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
