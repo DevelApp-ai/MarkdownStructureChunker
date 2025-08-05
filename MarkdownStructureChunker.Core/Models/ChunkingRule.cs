@@ -61,10 +61,10 @@ public class ChunkingRule
 
     private int CalculateDynamicLevel(Match match)
     {
-        // For numeric patterns like "1.2.3", count the dots + 1
+        // For numeric patterns like "1.2.3" or "1.", count the dots + 1
         if (Type == "Numeric" && match.Groups.Count > 1)
         {
-            var numericPart = match.Groups[1].Value;
+            var numericPart = match.Groups[1].Value.TrimEnd('.');
             return numericPart.Count(c => c == '.') + 1;
         }
 

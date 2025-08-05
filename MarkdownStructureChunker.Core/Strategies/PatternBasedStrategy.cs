@@ -203,7 +203,7 @@ public class PatternBasedStrategy : IChunkingStrategy
             new ChunkingRule("MarkdownH6", @"^######\s+(.*)", level: 6, priority: 6),
             
             // Numeric outlines (dynamic level calculation)
-            new ChunkingRule("Numeric", @"^(\d+(?:\.\d+)*)\s+(.*)", priority: 10),
+            new ChunkingRule("Numeric", @"^(\d+(?:\.\d+)*\.?)\s+(.*)", priority: 10),
             
             // Legal section references
             new ChunkingRule("Legal", @"^(§\s*\d+)\s+(.*)", priority: 20),
