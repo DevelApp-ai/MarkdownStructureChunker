@@ -7,9 +7,24 @@ namespace MarkdownStructureChunker.Core.Models;
 /// </summary>
 public class ChunkingRule
 {
+    /// <summary>
+    /// Gets the type identifier for this rule (e.g., "MarkdownH1", "Legal", "Numeric").
+    /// </summary>
     public string Type { get; }
+    
+    /// <summary>
+    /// Gets the compiled regular expression pattern used to match document lines.
+    /// </summary>
     public Regex Pattern { get; }
+    
+    /// <summary>
+    /// Gets the fixed hierarchical level for matches, or null if level should be calculated dynamically.
+    /// </summary>
     public int? FixedLevel { get; }
+    
+    /// <summary>
+    /// Gets the priority order for this rule (lower numbers = higher priority).
+    /// </summary>
     public int Priority { get; }
 
     /// <summary>

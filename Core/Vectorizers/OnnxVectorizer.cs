@@ -6,8 +6,22 @@ using System.Text;
 namespace MarkdownStructureChunker.Core.Vectorizers;
 
 /// <summary>
-/// ONNX-based vectorizer that uses the intfloat/multilingual-e5-large model
+/// ONNX-based vectorizer that provides a framework for using the intfloat/multilingual-e5-large model
 /// to convert text into vector embeddings.
+/// 
+/// IMPORTANT: This is currently a PLACEHOLDER IMPLEMENTATION for v1.0.0.
+/// The actual ONNX model integration requires:
+/// 1. The multilingual-e5-large ONNX model files
+/// 2. Proper tokenization logic (e.g., using transformers tokenizer)
+/// 3. Input tensor preparation and output processing
+/// 
+/// For production use, implement the VectorizeWithOnnxAsync method with:
+/// - Text tokenization using the model's tokenizer
+/// - Tensor creation and model inference
+/// - Output tensor processing to extract embeddings
+/// 
+/// The current implementation provides a deterministic placeholder that can be used
+/// for testing and development of the chunking pipeline.
 /// </summary>
 public class OnnxVectorizer : ILocalVectorizer, IDisposable
 {
@@ -20,6 +34,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     public int VectorDimension => 1024;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OnnxVectorizer"/> class.
+    /// </summary>
+    /// <param name="modelPath">Optional path to the ONNX model file. If null or invalid, the vectorizer will operate in fallback mode.</param>
     public OnnxVectorizer(string? modelPath = null)
     {
         try
@@ -69,6 +87,16 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
 
     /// <summary>
     /// Vectorizes text using the ONNX model.
+    /// 
+    /// TODO: PLACEHOLDER IMPLEMENTATION - Replace with actual ONNX inference logic.
+    /// 
+    /// To implement real ONNX vectorization:
+    /// 1. Tokenize the input text using the model's tokenizer
+    /// 2. Create input tensors (input_ids, attention_mask, token_type_ids)
+    /// 3. Run inference using _session.Run()
+    /// 4. Extract and process the output embeddings
+    /// 5. Apply mean pooling or other aggregation as needed
+    /// 6. Normalize the final embedding vector
     /// </summary>
     /// <param name="text">The text to vectorize</param>
     /// <returns>Vector embedding</returns>
@@ -79,10 +107,16 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
 
         try
         {
-            // This is a simplified implementation that would need to be completed
-            // with proper tokenization when the actual model is available
+            // TODO: Replace this placeholder with actual ONNX model inference
+            // 
+            // Example implementation structure:
+            // 1. var tokens = tokenizer.Encode(text);
+            // 2. var inputTensor = CreateInputTensor(tokens);
+            // 3. var outputs = _session.Run(new[] { inputTensor });
+            // 4. var embeddings = ProcessOutputTensor(outputs);
+            // 5. return NormalizeVector(embeddings);
             
-            // For now, return placeholder vector
+            Console.WriteLine("Warning: Using placeholder ONNX implementation. See documentation for real implementation guidance.");
             return await Task.FromResult(GeneratePlaceholderVector(text));
         }
         catch (Exception ex)
@@ -154,6 +188,9 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         return contextPrefix + chunkContent;
     }
 
+    /// <summary>
+    /// Releases all resources used by the <see cref="OnnxVectorizer"/>.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)

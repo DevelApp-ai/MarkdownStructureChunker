@@ -1,0 +1,54 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+      
+    - name: Test package build
+      run: dotnet pack ./Core/Core.csproj --configuration Release --no-build --output ./test-packages
+      
+    - name: Verify package created
+      run: |
+        echo "Checking for package files..."
+        ls -la ./test-packages/
+        if [ -f ./test-packages/MarkdownStructureChunker.1.0.0.nupkg ]; then
+          echo "✅ Main package created successfully"
+        else
+          echo "❌ Main package not found"
+          exit 1
+        fi
+        if [ -f ./test-packages/MarkdownStructureChunker.1.0.0.snupkg ]; then
+          echo "✅ Symbol package created successfully"
+        else
+          echo "❌ Symbol package not found"
+          exit 1
+        fi
+

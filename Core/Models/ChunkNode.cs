@@ -5,8 +5,19 @@ namespace MarkdownStructureChunker.Core.Models;
 /// </summary>
 public record ChunkNode
 {
+    /// <summary>
+    /// Gets or sets the unique identifier for this chunk.
+    /// </summary>
     public Guid Id { get; init; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Gets or sets the unique identifier of the parent chunk, or null if this is a root-level chunk.
+    /// </summary>
     public Guid? ParentId { get; init; }
+    
+    /// <summary>
+    /// Gets or sets the hierarchical level of this chunk (1 = top level, 2 = second level, etc.).
+    /// </summary>
     public int Level { get; init; }
     
     /// <summary>

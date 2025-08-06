@@ -1,0 +1,154 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          **/TestResults/**/*
+          **/coverage/**/*
+        if-no-files-found: warn
+        
+  build-package:
+    name: Build NuGet Package
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Create packages
+      run: dotnet pack ./Core/Core.csproj --configuration Release --no-build --output ./packages --include-symbols
+      
+    - name: Upload package artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: packages/*.nupkg
+        if-no-files-found: error
+        
+    - name: Upload symbol packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: symbol-packages
+        path: packages/*.snupkg
+        if-no-files-found: error
+
+  publish-nuget:
+    name: Publish to NuGet
+    runs-on: ubuntu-latest
+    needs: [test, build-package]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: Download package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./packages
+        
+    - name: Download symbol package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: symbol-packages
+        path: ./packages
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Publish packages to NuGet
+      run: |
+        echo "Publishing main packages..."
+        dotnet nuget push ./packages/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+          
+        echo "Publishing symbol packages..."
+        dotnet nuget push ./packages/*.snupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    needs: [test, build-package]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./packages
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Add GitHub Packages source
+      run: dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+      
+    - name: Publish to GitHub Packages
+      run: |
+        dotnet nuget push ./packages/*.nupkg \
+          --source "github" \
+          --skip-duplicate
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
