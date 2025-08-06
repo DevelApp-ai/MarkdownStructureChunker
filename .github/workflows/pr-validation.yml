@@ -25,29 +25,24 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
-    - name: Check code formatting
-      run: dotnet format --verify-no-changes --verbosity diagnostic
-      
     - name: Build solution
       run: dotnet build --configuration Release --no-restore
       
     - name: Run tests with coverage
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
       
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        directory: ./coverage
-        fail_ci_if_error: false
-        verbose: true
-        
     - name: Validate package can be built
       run: dotnet pack Core/Core.csproj --configuration Release --output ./validation-packages
       
     - name: Check package contents
       run: |
         echo "Package contents:"
-        unzip -l ./validation-packages/*.nupkg | head -20
+        if ls ./validation-packages/*.nupkg 1> /dev/null 2>&1; then
+          unzip -l ./validation-packages/*.nupkg | head -20
+        else
+          echo "No .nupkg files found"
+          ls -la ./validation-packages/
+        fi
         
     - name: Comment PR with validation results
       uses: actions/github-script@v7

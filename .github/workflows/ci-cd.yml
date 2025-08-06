@@ -41,7 +41,10 @@ jobs:
       if: always()
       with:
         name: test-results
-        path: '**/TestResults/**/*'
+        path: |
+          **/TestResults/**/*
+          **/coverage/**/*
+        if-no-files-found: warn
         
   build-package:
     name: Build NuGet Package
@@ -67,13 +70,15 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: nuget-packages
-        path: './packages/*.nupkg'
+        path: packages/*.nupkg
+        if-no-files-found: error
         
     - name: Upload symbol packages
       uses: actions/upload-artifact@v4
       with:
         name: symbol-packages
-        path: './packages/*.snupkg'
+        path: packages/*.snupkg
+        if-no-files-found: error
 
   publish-nuget:
     name: Publish to NuGet

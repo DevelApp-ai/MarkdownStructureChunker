@@ -75,34 +75,17 @@ jobs:
         echo "- Apache 2.0 licensed" >> release_notes.md
         
     - name: Create GitHub Release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       id: create_release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
-        release_name: Release v${{ github.event.inputs.version }}
+        name: Release v${{ github.event.inputs.version }}
         body_path: release_notes.md
         draft: false
         prerelease: ${{ github.event.inputs.prerelease }}
-        
-    - name: Upload NuGet package to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./release-packages/MarkdownStructureChunker.${{ github.event.inputs.version }}.nupkg
-        asset_name: MarkdownStructureChunker.${{ github.event.inputs.version }}.nupkg
-        asset_content_type: application/zip
-        
-    - name: Upload symbol package to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./release-packages/MarkdownStructureChunker.${{ github.event.inputs.version }}.snupkg
-        asset_name: MarkdownStructureChunker.${{ github.event.inputs.version }}.snupkg
-        asset_content_type: application/zip
+        files: |
+          ./release-packages/MarkdownStructureChunker.${{ github.event.inputs.version }}.nupkg
+          ./release-packages/MarkdownStructureChunker.${{ github.event.inputs.version }}.snupkg
 
