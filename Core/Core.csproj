@@ -4,7 +4,46 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>MarkdownStructureChunker</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>DevelApp.ai</Authors>
+    <Company>DevelApp.ai</Company>
+    <Product>MarkdownStructureChunker</Product>
+    <Description>A powerful .NET library for intelligent document structure analysis and chunking. Automatically identifies and parses various document patterns including Markdown headings, numeric outlines, legal sections, and appendices. Features hierarchical content organization, advanced keyword extraction with ML.NET, and ONNX vectorization support for semantic embeddings.</Description>
+    <Summary>Intelligent document structure analysis and chunking library for .NET with ML.NET and ONNX support</Summary>
+    <PackageTags>markdown;document;parsing;chunking;structure;analysis;ml;onnx;nlp;text-processing;hierarchical;vectorization;embeddings</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/DevelApp-ai/MarkdownStructureChunker</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DevelApp-ai/MarkdownStructureChunker</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>
+      v1.0.0 - Initial release
+      - Pattern-based document structure recognition
+      - Hierarchical chunk organization with parent-child relationships
+      - Multiple keyword extraction strategies (Simple and ML.NET)
+      - ONNX vectorization framework for semantic embeddings
+      - Support for Markdown, numeric, legal, and appendix patterns
+      - Comprehensive test suite with 66 test cases
+      - Production-ready with proper error handling and resource management
+    </PackageReleaseNotes>
+    <Copyright>Copyright © 2025 DevelApp.ai</Copyright>
+    <AssemblyTitle>MarkdownStructureChunker</AssemblyTitle>
+    <AssemblyDescription>Intelligent document structure analysis and chunking library</AssemblyDescription>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+    <None Include="../LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="4.0.2" />
