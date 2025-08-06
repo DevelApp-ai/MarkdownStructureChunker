@@ -5,6 +5,11 @@ on:
     branches: [ main, develop ]
     types: [ opened, synchronize, reopened ]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   DOTNET_VERSION: '8.0.x'
 
@@ -26,12 +31,15 @@ jobs:
       run: dotnet restore
       
     - name: Build solution
+      id: build
       run: dotnet build --configuration Release --no-restore
       
     - name: Run tests with coverage
+      id: test
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
       
     - name: Validate package can be built
+      id: package
       run: dotnet pack ./Core/Core.csproj --configuration Release --output ./validation-packages
       
     - name: Check package contents
@@ -48,38 +56,68 @@ jobs:
       uses: actions/github-script@v7
       if: always()
       with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-          
-          const botComment = comments.find(comment => 
-            comment.user.type === 'Bot' && comment.body.includes('PR Validation Results')
-          );
-          
-          const body = `## PR Validation Results
-          
-          ✅ **Build**: Successful
-          ✅ **Tests**: All tests passed
-          ✅ **Package**: NuGet package builds correctly
-          
-          This PR is ready for review!`;
-          
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
+          try {
+            // Check if we're in a pull request context
+            if (!context.issue.number) {
+              console.log('Not running in a pull request context, skipping comment');
+              return;
+            }
+            
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: body
             });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('PR Validation Results')
+            );
+            
+            // Determine validation status based on previous steps
+            const buildStatus = '${{ steps.build.outcome }}' || 'success';
+            const testStatus = '${{ steps.test.outcome }}' || 'success';
+            const packageStatus = '${{ steps.package.outcome }}' || 'success';
+            
+            const buildIcon = buildStatus === 'success' ? '✅' : '❌';
+            const testIcon = testStatus === 'success' ? '✅' : '❌';
+            const packageIcon = packageStatus === 'success' ? '✅' : '❌';
+            
+            const body = `## PR Validation Results
+            
+            ${buildIcon} **Build**: ${buildStatus === 'success' ? 'Successful' : 'Failed'}
+            ${testIcon} **Tests**: ${testStatus === 'success' ? 'All tests passed' : 'Tests failed'}
+            ${packageIcon} **Package**: ${packageStatus === 'success' ? 'NuGet package builds correctly' : 'Package build failed'}
+            
+            ${buildStatus === 'success' && testStatus === 'success' && packageStatus === 'success' 
+              ? 'This PR is ready for review! 🎉' 
+              : 'Please fix the issues above before merging.'}`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+              console.log('Updated existing PR comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+              console.log('Created new PR comment');
+            }
+          } catch (error) {
+            console.error('Failed to comment on PR:', error);
+            console.log('PR number:', context.issue.number);
+            console.log('Repository:', context.repo.owner + '/' + context.repo.repo);
+            console.log('Error details:', error.message);
+            
+            // Don't fail the workflow if commenting fails
+            console.log('Continuing workflow despite comment failure...');
           }
 
