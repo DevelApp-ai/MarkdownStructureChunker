@@ -48,6 +48,8 @@ jobs:
         
   build-package:
     name: Build NuGet Package
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: test
     
