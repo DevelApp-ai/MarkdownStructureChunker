@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Core", "MarkdownStructureChunker.Core\MarkdownStructureChunker.Core.csproj", "{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{186ED8D0-8071-4534-8809-B2FDC2AF2BD2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Demo", "MarkdownStructureChunker.Demo\MarkdownStructureChunker.Demo.csproj", "{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{5DC1CC12-65FC-44C2-A5C1-178547FA9DDD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownStructureChunker.Tests", "MarkdownStructureChunker.Tests\MarkdownStructureChunker.Tests.csproj", "{071F0476-5AEE-478A-938A-61C36CE68549}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{071F0476-5AEE-478A-938A-61C36CE68549}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
