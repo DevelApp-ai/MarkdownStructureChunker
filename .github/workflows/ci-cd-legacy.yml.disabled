@@ -1,4 +1,7 @@
-name: CI/CD Pipeline
+# This file has been replaced by dotnet.yml with GitVersion support
+# Keeping for reference only - this workflow is disabled
+
+name: CI/CD Pipeline (Legacy)
 
 on:
   push:

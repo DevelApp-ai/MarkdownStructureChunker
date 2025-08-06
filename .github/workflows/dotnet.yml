@@ -1,0 +1,172 @@
+name: .NET CI/CD
+
+# Triggers the workflow on pushes and pull requests to the main branch
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for GitVersion
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v1.1.1
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine Version
+      id: gitversion # The output of this step is used later
+      uses: gittools/actions/gitversion/execute@v1.1.1
+
+    - name: Display GitVersion outputs
+      run: |
+        echo "Major: ${{ steps.gitversion.outputs.major }}"
+        echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+        echo "Patch: ${{ steps.gitversion.outputs.patch }}"
+        echo "PreReleaseTag: ${{ steps.gitversion.outputs.preReleaseTag }}"
+        echo "PreReleaseTagWithDash: ${{ steps.gitversion.outputs.preReleaseTagWithDash }}"
+        echo "PreReleaseLabel: ${{ steps.gitversion.outputs.preReleaseLabel }}"
+        echo "PreReleaseNumber: ${{ steps.gitversion.outputs.preReleaseNumber }}"
+        echo "WeightedPreReleaseNumber: ${{ steps.gitversion.outputs.weightedPreReleaseNumber }}"
+        echo "BuildMetaData: ${{ steps.gitversion.outputs.buildMetaData }}"
+        echo "BuildMetaDataPadded: ${{ steps.gitversion.outputs.buildMetaDataPadded }}"
+        echo "FullBuildMetaData: ${{ steps.gitversion.outputs.fullBuildMetaData }}"
+        echo "MajorMinorPatch: ${{ steps.gitversion.outputs.majorMinorPatch }}"
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "LegacySemVer: ${{ steps.gitversion.outputs.legacySemVer }}"
+        echo "LegacySemVerPadded: ${{ steps.gitversion.outputs.legacySemVerPadded }}"
+        echo "AssemblySemVer: ${{ steps.gitversion.outputs.assemblySemVer }}"
+        echo "AssemblySemFileVer: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
+        echo "FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+        echo "InformationalVersion: ${{ steps.gitversion.outputs.informationalVersion }}"
+        echo "BranchName: ${{ steps.gitversion.outputs.branchName }}"
+        echo "EscapedBranchName: ${{ steps.gitversion.outputs.escapedBranchName }}"
+        echo "Sha: ${{ steps.gitversion.outputs.sha }}"
+        echo "ShortSha: ${{ steps.gitversion.outputs.shortSha }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "NuGetVersion: ${{ steps.gitversion.outputs.nuGetVersion }}"
+        echo "NuGetPreReleaseTagV2: ${{ steps.gitversion.outputs.nuGetPreReleaseTagV2 }}"
+        echo "NuGetPreReleaseTag: ${{ steps.gitversion.outputs.nuGetPreReleaseTag }}"
+        echo "VersionSourceSha: ${{ steps.gitversion.outputs.versionSourceSha }}"
+        echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.commitsSinceVersionSource }}"
+        echo "CommitsSinceVersionSourcePadded: ${{ steps.gitversion.outputs.commitsSinceVersionSourcePadded }}"
+        echo "UncommittedChanges: ${{ steps.gitversion.outputs.uncommittedChanges }}"
+        echo "CommitDate: ${{ steps.gitversion.outputs.commitDate }}"
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      # Use the version calculated by GitVersion
+      run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+
+    - name: Test
+      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          **/TestResults/**/*
+          **/coverage/**/*
+        if-no-files-found: warn
+
+    - name: Pack
+      # Creates the NuGet package using the calculated version
+      run: dotnet pack ./Core/Core.csproj --no-build --configuration Release -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+
+    - name: Upload package artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: artifacts/*.nupkg
+        if-no-files-found: error
+
+    - name: Upload symbol packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: symbol-packages
+        path: artifacts/*.snupkg
+        if-no-files-found: error
+
+    - name: Publish to GitHub Packages (Pre-release)
+      # Publish pre-release packages to GitHub Packages for PRs and non-main branches
+      if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+        dotnet nuget push ./artifacts/*.nupkg --source "github" --skip-duplicate
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Publish to NuGet (Stable Release)
+      # This step only runs for pushes to the 'main' branch
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Publishing stable release packages to NuGet.org..."
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+          
+        echo "Publishing symbol packages to NuGet.org..."
+        dotnet nuget push ./artifacts/*.snupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+    - name: Create GitHub Release
+      # Create a GitHub release for stable versions on main branch
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.gitversion.outputs.semVer }}
+        name: Release v${{ steps.gitversion.outputs.semVer }}
+        body: |
+          ## MarkdownStructureChunker v${{ steps.gitversion.outputs.semVer }}
+          
+          ### What's Changed
+          - Intelligent document structure analysis and chunking
+          - Pattern-based document structure recognition
+          - Hierarchical chunk organization with parent-child relationships
+          - Multiple keyword extraction strategies (Simple and ML.NET)
+          - ONNX vectorization framework for semantic embeddings
+          - Support for Markdown, numeric, legal, and appendix patterns
+          
+          ### Technical Details
+          - Full .NET 8.0 support with nullable reference types
+          - Comprehensive test suite with 66 test cases
+          - Production-ready with proper error handling and resource management
+          - SourceLink enabled for debugging transparency
+          - Apache 2.0 licensed
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.gitversion.outputs.semVer }}
+        draft: false
+        prerelease: false
+        files: |
+          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.nupkg
+          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.snupkg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
