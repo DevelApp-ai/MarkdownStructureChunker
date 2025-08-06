@@ -111,7 +111,7 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
 
         // Extract words from the original text for frequency analysis
         var words = ExtractWords(cleanedContent);
-        var filteredWords = words.Where(w => w.Length >= 3 && !IsStopWord(w)).ToList();
+        var filteredWords = words.Where(w => w.Length >= 3 && !StopWords.IsStopWord(w)).ToList();
 
         // Count word frequencies
         var wordFrequencies = filteredWords
@@ -138,7 +138,7 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     private Task<IReadOnlyList<string>> ExtractKeywordsSimple(string content, int maxKeywords)
     {
         var words = ExtractWords(content);
-        var filteredWords = words.Where(w => w.Length >= 3 && !IsStopWord(w)).ToList();
+        var filteredWords = words.Where(w => w.Length >= 3 && !StopWords.IsStopWord(w)).ToList();
 
         var wordFrequencies = filteredWords
             .GroupBy(word => word, StringComparer.OrdinalIgnoreCase)
@@ -180,34 +180,6 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
         return matches.Cast<Match>()
             .Select(m => m.Value)
             .ToList();
-    }
-
-    /// <summary>
-    /// Checks if a word is a stop word.
-    /// </summary>
-    /// <param name="word">The word to check</param>
-    /// <returns>True if the word is a stop word</returns>
-    private static bool IsStopWord(string word)
-    {
-        var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he", "in", "is", "it",
-            "its", "of", "on", "that", "the", "to", "was", "will", "with", "would", "could", "should",
-            "this", "these", "those", "they", "them", "their", "there", "where", "when", "what", "who",
-            "how", "why", "which", "can", "may", "might", "must", "shall", "have", "had", "do", "does",
-            "did", "been", "being", "am", "were", "but", "or", "not", "no", "yes", "if", "then", "else",
-            "than", "more", "most", "less", "least", "very", "much", "many", "some", "any", "all", "each",
-            "every", "both", "either", "neither", "one", "two", "three", "first", "second", "third",
-            "last", "next", "previous", "before", "after", "during", "while", "until", "since", "because",
-            "so", "therefore", "however", "although", "though", "unless", "except", "instead", "rather",
-            "quite", "just", "only", "also", "too", "even", "still", "yet", "already", "again", "once",
-            "twice", "here", "there", "everywhere", "anywhere", "somewhere", "nowhere", "up", "down",
-            "left", "right", "above", "below", "over", "under", "through", "across", "around", "between",
-            "among", "within", "without", "inside", "outside", "near", "far", "close", "away", "back",
-            "forward", "toward", "against", "along", "beside", "behind", "beyond", "beneath", "above"
-        };
-
-        return stopWords.Contains(word);
     }
 
     public void Dispose()
