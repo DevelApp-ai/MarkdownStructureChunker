@@ -12,6 +12,12 @@ public class PatternBasedStrategy : IChunkingStrategy
 {
     private readonly List<ChunkingRule> _rules;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PatternBasedStrategy"/> class with the specified chunking rules.
+    /// </summary>
+    /// <param name="rules">The collection of chunking rules to use for document processing, ordered by priority.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="rules"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="rules"/> is empty.</exception>
     public PatternBasedStrategy(IEnumerable<ChunkingRule> rules)
     {
         _rules = rules?.OrderBy(r => r.Priority).ToList() ?? throw new ArgumentNullException(nameof(rules));

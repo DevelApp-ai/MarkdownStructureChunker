@@ -12,6 +12,12 @@ public class StructureChunker
     private readonly IChunkingStrategy _chunkingStrategy;
     private readonly IKeywordExtractor _keywordExtractor;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StructureChunker"/> class with the specified strategy and extractor.
+    /// </summary>
+    /// <param name="chunkingStrategy">The chunking strategy to use for document processing.</param>
+    /// <param name="keywordExtractor">The keyword extractor to use for content analysis.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="chunkingStrategy"/> or <paramref name="keywordExtractor"/> is null.</exception>
     public StructureChunker(IChunkingStrategy chunkingStrategy, IKeywordExtractor keywordExtractor)
     {
         _chunkingStrategy = chunkingStrategy ?? throw new ArgumentNullException(nameof(chunkingStrategy));

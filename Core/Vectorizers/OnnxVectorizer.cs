@@ -34,6 +34,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     public int VectorDimension => 1024;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OnnxVectorizer"/> class.
+    /// </summary>
+    /// <param name="modelPath">Optional path to the ONNX model file. If null or invalid, the vectorizer will operate in fallback mode.</param>
     public OnnxVectorizer(string? modelPath = null)
     {
         try
@@ -184,6 +188,9 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         return contextPrefix + chunkContent;
     }
 
+    /// <summary>
+    /// Releases all resources used by the <see cref="OnnxVectorizer"/>.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)

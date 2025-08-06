@@ -34,15 +34,15 @@ jobs:
         
     - name: Update version in project file
       run: |
-        sed -i 's/<Version>.*<\/Version>/<Version>${{ github.event.inputs.version }}<\/Version>/' Core/Core.csproj
-        sed -i 's/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${{ github.event.inputs.version }}.0<\/AssemblyVersion>/' Core/Core.csproj
-        sed -i 's/<FileVersion>.*<\/FileVersion>/<FileVersion>${{ github.event.inputs.version }}.0<\/FileVersion>/' Core/Core.csproj
+        sed -i 's/<Version>.*<\/Version>/<Version>${{ github.event.inputs.version }}<\/Version>/' ./Core/Core.csproj
+        sed -i 's/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${{ github.event.inputs.version }}.0<\/AssemblyVersion>/' ./Core/Core.csproj
+        sed -i 's/<FileVersion>.*<\/FileVersion>/<FileVersion>${{ github.event.inputs.version }}.0<\/FileVersion>/' ./Core/Core.csproj
         
     - name: Commit version update
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add Core/Core.csproj
+        git add ./Core/Core.csproj
         git commit -m "chore: bump version to ${{ github.event.inputs.version }}" || exit 0
         git push
         
@@ -54,7 +54,7 @@ jobs:
         
     - name: Create packages
       run: |
-        dotnet pack Core/Core.csproj --configuration Release --output ./release-packages
+        dotnet pack ./Core/Core.csproj --configuration Release --output ./release-packages
         
     - name: Generate release notes
       id: release_notes

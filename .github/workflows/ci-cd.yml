@@ -63,8 +63,11 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
-    - name: Build and pack
-      run: dotnet pack Core/Core.csproj --configuration Release --output ./packages --include-symbols
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Create packages
+      run: dotnet pack ./Core/Core.csproj --configuration Release --no-build --output ./packages --include-symbols
       
     - name: Upload package artifacts
       uses: actions/upload-artifact@v4

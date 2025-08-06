@@ -33,7 +33,7 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal
       
     - name: Test package build
-      run: dotnet pack Core/Core.csproj --configuration Release --output ./test-packages
+      run: dotnet pack ./Core/Core.csproj --configuration Release --no-build --output ./test-packages
       
     - name: Verify package created
       run: |

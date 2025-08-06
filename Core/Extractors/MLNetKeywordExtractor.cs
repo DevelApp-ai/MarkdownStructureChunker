@@ -16,6 +16,10 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     private readonly PredictionEngine<TextInput, TextFeatures>? _predictionEngine;
     private bool _disposed = false;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MLNetKeywordExtractor"/> class.
+    /// Sets up the ML.NET context and text processing pipeline for keyword extraction.
+    /// </summary>
     public MLNetKeywordExtractor()
     {
         _mlContext = new MLContext(seed: 42);
@@ -182,6 +186,9 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
             .ToList();
     }
 
+    /// <summary>
+    /// Releases all resources used by the <see cref="MLNetKeywordExtractor"/>.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)
@@ -197,6 +204,9 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
 /// </summary>
 public class TextInput
 {
+    /// <summary>
+    /// Gets or sets the text content to be processed for keyword extraction.
+    /// </summary>
     public string Text { get; set; } = string.Empty;
 }
 
@@ -205,6 +215,9 @@ public class TextInput
 /// </summary>
 public class TextFeatures
 {
+    /// <summary>
+    /// Gets or sets the feature vector representing the processed text.
+    /// </summary>
     [VectorType]
     public float[] Features { get; set; } = Array.Empty<float>();
 }
