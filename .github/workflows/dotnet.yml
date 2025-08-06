@@ -1,10 +1,9 @@
 name: .NET CI/CD
 
-# Triggers the workflow on pushes and pull requests to the main branch
+# Triggers the workflow on pushes to main branch only
+# PRs are handled by the separate pr-validation.yml workflow
 on:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 permissions:
@@ -116,18 +115,8 @@ jobs:
         path: artifacts/*.snupkg
         if-no-files-found: error
 
-    - name: Publish to GitHub Packages (Pre-release)
-      # Publish pre-release packages to GitHub Packages for PRs and non-main branches
-      if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
-      run: |
-        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-        dotnet nuget push ./artifacts/*.nupkg --source "github" --skip-duplicate
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Publish to NuGet (Stable Release)
-      # This step only runs for pushes to the 'main' branch
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # This step runs for all pushes to main branch
       run: |
         echo "Publishing stable release packages to NuGet.org..."
         dotnet nuget push ./artifacts/*.nupkg \
@@ -143,9 +132,17 @@ jobs:
       env:
         NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
+    - name: Publish to GitHub Packages
+      # Also publish to GitHub Packages for backup
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+        dotnet nuget push ./artifacts/*.nupkg --source "github" --skip-duplicate
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Create GitHub Release
-      # Create a GitHub release for stable versions on main branch
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
+      # Create a GitHub release for stable versions (non-pre-release only)
+      if: !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.gitversion.outputs.semVer }}
