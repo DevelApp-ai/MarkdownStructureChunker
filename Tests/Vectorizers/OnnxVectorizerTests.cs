@@ -249,7 +249,7 @@ public class OnnxVectorizerFactoryTests
     public void CreateWithPath_ReturnsVectorizer()
     {
         // Act
-        using var vectorizer = OnnxVectorizerFactory.CreateWithPath("/test/path/model.onnx");
+        using var vectorizer = OnnxVectorizerFactory.CreateWithPaths("/test/path/model.onnx");
 
         // Assert
         Assert.NotNull(vectorizer);
@@ -260,7 +260,7 @@ public class OnnxVectorizerFactoryTests
     public void CreatePlaceholder_ReturnsVectorizer()
     {
         // Act
-        using var vectorizer = OnnxVectorizerFactory.CreatePlaceholder();
+        using var vectorizer = OnnxVectorizerFactory.CreateDeterministic();
 
         // Assert
         Assert.NotNull(vectorizer);
