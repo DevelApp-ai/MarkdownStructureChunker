@@ -13,8 +13,8 @@ This directory contains the CI/CD workflows for the MarkdownStructureChunker pro
 
 **Jobs:**
 - **test**: Builds the solution and runs all tests
-- **build-package**: Creates NuGet packages with symbols
-- **publish-nuget**: Publishes to NuGet.org (on releases only)
+- **build-package**: Creates NuGet packages (.nupkg) and symbol packages (.snupkg)
+- **publish-nuget**: Publishes both main and symbol packages to NuGet.org (on releases only)
 - **publish-github-packages**: Publishes to GitHub Packages (on main branch)
 
 ### 2. Release Workflow (`release.yml`)
@@ -104,11 +104,15 @@ The following secrets need to be configured in the GitHub repository:
 
 ### NuGet.org
 - **Automatic**: On GitHub releases
-- **Manual**: Use `dotnet nuget push` with API key
+- **Packages**: Both main (.nupkg) and symbol (.snupkg) packages
+- **Symbol Server**: Symbols automatically published to NuGet.org symbol server
+- **Debugging**: Enables source-level debugging for consumers
+- **Manual**: Use `dotnet nuget push` with API key for both package types
 
 ### GitHub Packages
 - **Automatic**: On pushes to main branch
 - **Access**: Requires GitHub authentication
+- **Packages**: Main packages only (symbols not supported by GitHub Packages)
 
 ## Monitoring
 

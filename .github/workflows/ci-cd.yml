@@ -88,14 +88,27 @@ jobs:
         name: nuget-packages
         path: ./packages
         
+    - name: Download symbol package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: symbol-packages
+        path: ./packages
+        
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
-    - name: Publish to NuGet
+    - name: Publish packages to NuGet
       run: |
+        echo "Publishing main packages..."
         dotnet nuget push ./packages/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+          
+        echo "Publishing symbol packages..."
+        dotnet nuget push ./packages/*.snupkg \
           --api-key ${{ secrets.NUGET_API_KEY }} \
           --source https://api.nuget.org/v3/index.json \
           --skip-duplicate
