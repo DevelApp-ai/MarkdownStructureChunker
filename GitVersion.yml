@@ -89,12 +89,6 @@ branches:
 ignore:
   sha: []
 increment: Inherit
-commit-message-incrementing:
-  enabled: true
-  bump-message: '\+semver:\s?(breaking|major)'
-  patch-message: '\+semver:\s?(fix|patch)'
-  minor-message: '\+semver:\s?(feature|minor)'
-  no-bump-message: '\+semver:\s?(none|skip)'
 merge-message-formats: {}
 update-build-number: true
 
