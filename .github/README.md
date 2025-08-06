@@ -2,143 +2,95 @@
 
 This directory contains the CI/CD workflows for the MarkdownStructureChunker project.
 
-## Workflows
+## Active Workflows
 
-### 1. CI/CD Pipeline (`ci-cd.yml`)
-
-**Triggers:**
-- Push to `main` or `develop` branches
-- Pull requests to `main`
-- Published releases
-
-**Jobs:**
-- **test**: Builds the solution and runs all tests
-- **build-package**: Creates NuGet packages (.nupkg) and symbol packages (.snupkg)
-- **publish-nuget**: Publishes both main and symbol packages to NuGet.org (on releases only)
-- **publish-github-packages**: Publishes to GitHub Packages (on main branch)
-
-### 2. Release Workflow (`release.yml`)
-
-**Trigger:** Manual workflow dispatch
-
-**Purpose:** Creates official releases with version management
-
-**Steps:**
-1. Updates version numbers in project files
-2. Commits version changes
-3. Builds and tests the solution
-4. Creates NuGet packages
-5. Creates GitHub release with release notes
-6. Uploads packages as release assets
-
-**Usage:**
-1. Go to Actions tab in GitHub
-2. Select "Release" workflow
-3. Click "Run workflow"
-4. Enter version number (e.g., "1.0.0")
-5. Choose if it's a pre-release
-
-### 3. PR Validation (`pr-validation.yml`)
+### 1. `.NET CI/CD` (`dotnet.yml`)
+**Primary CI/CD Pipeline** - Handles all build, test, and deployment operations.
 
 **Triggers:**
-- Pull request opened, synchronized, or reopened
+- Push to `main` branch
+- Pull requests to `main` branch
 
-**Purpose:** Validates pull requests before merge
+**Features:**
+- GitVersion automatic semantic versioning
+- SourceLink integration for debugging transparency
+- Automatic package publishing to NuGet.org (main branch) and GitHub Packages (PRs)
+- Automatic GitHub release creation for stable versions
+- Comprehensive testing and validation
 
-**Checks:**
-- Code formatting
-- Build success
-- Test execution with coverage
-- Package build validation
-- Automated PR comments with results
+**Permissions:**
+- `contents: write` - For creating releases and tags
+- `packages: write` - For publishing to GitHub Packages
+- `pull-requests: write` - For PR interactions
+- `issues: write` - For issue comments
+- `actions: read` - For workflow access
 
-## Setup Requirements
+### 2. `Validate Pull Request` (`pr-validation.yml`)
+**PR Validation** - Provides detailed validation feedback on pull requests.
 
-### Secrets
+**Triggers:**
+- Pull request events (opened, synchronize, reopened) to `main` branch
 
-The following secrets need to be configured in the GitHub repository:
+**Features:**
+- GitVersion-based version calculation for PRs
+- Build and test validation
+- Package creation verification
+- Automated PR comments with validation results
 
-1. **`NUGET_API_KEY`**: API key for publishing to NuGet.org
-   - Get from: https://www.nuget.org/account/apikeys
-   - Scope: Push new packages and package versions
+**Permissions:**
+- `contents: read` - For repository access
+- `issues: write` - For commenting on PRs
+- `pull-requests: write` - For PR interactions
 
-### Repository Settings
+## Disabled Workflows
 
-1. **Branch Protection**: Enable branch protection for `main` branch
-   - Require status checks to pass
-   - Require pull request reviews
-   - Include administrators
+The following workflows have been disabled to prevent conflicts:
 
-2. **GitHub Packages**: Enable GitHub Packages for the repository
-   - Automatically configured for publishing
+### `build-test.yml.disabled`
+- **Reason**: Replaced by the comprehensive `dotnet.yml` workflow
+- **Previous Function**: Basic build and test validation
+- **Migration**: All functionality moved to `dotnet.yml`
 
-## Release Process
+### `release.yml.disabled`
+- **Reason**: Replaced by automatic GitVersion-based releases in `dotnet.yml`
+- **Previous Function**: Manual release creation with version input
+- **Migration**: Automatic releases now handled by GitVersion
 
-### For v1.0.0 Release:
+### `ci-cd-legacy.yml.disabled`
+- **Reason**: Replaced by modern GitVersion-based `dotnet.yml` workflow
+- **Previous Function**: Legacy CI/CD with manual versioning
+- **Migration**: Enhanced with GitVersion and SourceLink support
 
-1. **Prepare Release:**
-   ```bash
-   # Ensure all changes are merged to main
-   git checkout main
-   git pull origin main
-   ```
+### `pr-validation-old.yml.disabled`
+- **Reason**: Updated to support GitVersion and avoid conflicts
+- **Previous Function**: Basic PR validation without versioning
+- **Migration**: Enhanced with GitVersion integration
 
-2. **Create Release:**
-   - Go to GitHub Actions
-   - Run "Release" workflow
-   - Enter version: `1.0.0`
-   - Set prerelease: `false`
+## Workflow Strategy
 
-3. **Verify Release:**
-   - Check GitHub release is created
-   - Verify NuGet package is published
-   - Test package installation
+### Version Management
+- **Automatic**: GitVersion calculates versions from Git history
+- **Branch-based**: Different versioning strategies per branch type
+- **Semantic**: Follows semantic versioning (SemVer) conventions
 
-### For Future Releases:
+### Publishing Strategy
+- **Pull Requests**: Pre-release packages to GitHub Packages
+- **Main Branch**: Stable packages to NuGet.org + GitHub Packages
+- **Releases**: Automatic GitHub releases for stable versions
 
-1. Update version in workflow dispatch
-2. Follow semantic versioning (MAJOR.MINOR.PATCH)
-3. Update release notes as needed
+### Quality Assurance
+- **Build Validation**: All code must compile successfully
+- **Test Coverage**: All tests must pass (66 test cases)
+- **Package Verification**: Packages must be created successfully
+- **SourceLink**: Source code transparency enabled
 
-## Package Publishing
+## Configuration Files
 
-### NuGet.org
-- **Automatic**: On GitHub releases
-- **Packages**: Both main (.nupkg) and symbol (.snupkg) packages
-- **Symbol Server**: Symbols automatically published to NuGet.org symbol server
-- **Debugging**: Enables source-level debugging for consumers
-- **Manual**: Use `dotnet nuget push` with API key for both package types
+### `GitVersion.yml`
+Controls automatic version calculation based on Git history and branch patterns.
 
-### GitHub Packages
-- **Automatic**: On pushes to main branch
-- **Access**: Requires GitHub authentication
-- **Packages**: Main packages only (symbols not supported by GitHub Packages)
-
-## Monitoring
-
-- **Build Status**: Check Actions tab for workflow status
-- **Package Downloads**: Monitor on NuGet.org
-- **Issues**: GitHub Issues for bug reports and feature requests
-
-## Troubleshooting
-
-### Common Issues:
-
-1. **NuGet Push Fails:**
-   - Check API key is valid and has push permissions
-   - Verify package version doesn't already exist
-
-2. **Tests Fail:**
-   - Check test output in Actions logs
-   - Verify all dependencies are restored
-
-3. **Package Build Fails:**
-   - Check project file syntax
-   - Verify all referenced files exist
-
-### Getting Help:
-
-- Check workflow logs in GitHub Actions
-- Review this documentation
-- Open an issue for workflow problems
+### Project Files
+- **SourceLink**: Enabled for debugging transparency
+- **Symbol Packages**: Generated for all releases (.snupkg)
+- **Package Metadata**: Comprehensive NuGet package information
 

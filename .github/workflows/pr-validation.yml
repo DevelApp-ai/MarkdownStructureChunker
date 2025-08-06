@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened]
+  # Only run on PRs, not on pushes to avoid conflicts with main CI/CD
 
 permissions:
   contents: read          # Read repository content

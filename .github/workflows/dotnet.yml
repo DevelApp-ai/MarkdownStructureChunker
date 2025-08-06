@@ -8,7 +8,11 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
+  contents: write          # Required for creating releases and pushing tags
+  packages: write          # Required for publishing to GitHub Packages
+  pull-requests: write     # Required for PR comments
+  issues: write           # Required for issue comments
+  actions: read           # Required for workflow access
 
 env:
   DOTNET_VERSION: '8.0.x'
