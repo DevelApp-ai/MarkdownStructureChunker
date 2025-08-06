@@ -129,6 +129,9 @@ jobs:
 
   publish-github-packages:
     name: Publish to GitHub Packages
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     needs: [test, build-package]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
