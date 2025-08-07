@@ -1,0 +1,147 @@
+# Podman-optimized Containerfile for MarkdownStructureChunker with ONNX Models
+# This Containerfile is optimized for Podman's features including rootless containers
+
+# Multi-stage build for optimal image size and security
+FROM python:3.11-slim AS onnx-downloader
+
+# Set labels for better container management
+LABEL maintainer="DevelApp.ai"
+LABEL description="ONNX model downloader for MarkdownStructureChunker"
+LABEL version="1.0.0"
+
+# Create non-root user for security
+RUN groupadd -r onnxuser && useradd -r -g onnxuser onnxuser
+
+# Install dependencies for model download
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install huggingface_hub
+RUN pip install --no-cache-dir huggingface_hub
+
+# Create models directory with proper permissions
+RUN mkdir -p /models && chown -R onnxuser:onnxuser /models
+
+# Switch to non-root user
+USER onnxuser
+
+# Copy setup script
+COPY --chown=onnxuser:onnxuser docs/onnx-setup/setup-onnx.sh /tmp/setup-onnx.sh
+
+# Make script executable
+USER root
+RUN chmod +x /tmp/setup-onnx.sh
+USER onnxuser
+
+# Download ONNX models
+ENV ONNX_MODEL_DIR=/models/multilingual-e5-large
+RUN /tmp/setup-onnx.sh
+
+# Verify the download
+RUN /models/multilingual-e5-large/test-setup.py
+
+# Build stage for .NET application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
+# Set labels
+LABEL stage="build"
+
+WORKDIR /src
+
+# Copy project files
+COPY ["Core/Core.csproj", "Core/"]
+COPY ["Demo/Demo.csproj", "Demo/"]
+RUN dotnet restore "Demo/Demo.csproj"
+
+# Copy source code and build
+COPY . .
+WORKDIR "/src/Demo"
+RUN dotnet build "Demo.csproj" -c Release -o /app/build
+RUN dotnet publish "Demo.csproj" -c Release -o /app/publish
+
+# Runtime stage optimized for Podman
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+# Set comprehensive labels for Podman
+LABEL maintainer="DevelApp.ai" \
+      description="MarkdownStructureChunker with ONNX semantic embeddings" \
+      version="1.0.2" \
+      vendor="DevelApp.ai" \
+      url="https://github.com/DevelApp-ai/MarkdownStructureChunker" \
+      documentation="https://github.com/DevelApp-ai/MarkdownStructureChunker/blob/main/docs/onnx-setup/README.md" \
+      source="https://github.com/DevelApp-ai/MarkdownStructureChunker" \
+      licenses="MIT" \
+      io.podman.annotations.autoremove="false" \
+      io.podman.annotations.init="true" \
+      io.podman.annotations.privileged="false" \
+      io.podman.annotations.publish.all="false"
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create application user for security (Podman best practice)
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /bin/bash appuser
+
+# Create application directory
+WORKDIR /app
+
+# Copy application with proper ownership
+COPY --from=build --chown=appuser:appuser /app/publish .
+
+# Copy ONNX models from downloader stage with proper ownership
+COPY --from=onnx-downloader --chown=appuser:appuser /models /app/models
+
+# Set environment variables for ONNX (Podman-friendly)
+ENV ONNX_MODEL_PATH=/app/models/multilingual-e5-large/model.onnx \
+    ONNX_TOKENIZER_PATH=/app/models/multilingual-e5-large/tokenizer.json \
+    ONNX_INTER_OP_THREADS=4 \
+    ONNX_INTRA_OP_THREADS=4 \
+    ONNX_ENABLE_MEMORY_PATTERN=1 \
+    ONNX_ENABLE_CPU_MEM_ARENA=1
+
+# Performance optimization for containers
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_USE_POLLING_FILE_WATCHER=true \
+    ASPNETCORE_URLS=http://+:8080
+
+# Security settings for Podman
+ENV ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/temp && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user (Podman best practice)
+USER appuser
+
+# Health check optimized for Podman
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Expose port (using non-privileged port for rootless)
+EXPOSE 8080
+
+# Add stop signal for graceful shutdown
+STOPSIGNAL SIGTERM
+
+# Use exec form for better signal handling in Podman
+ENTRYPOINT ["dotnet", "Demo.dll"]
+
+# Default command arguments
+CMD []
+
+# Podman-specific annotations for better integration
+LABEL io.containers.autoupdate="registry" \
+      io.containers.capabilities="NET_BIND_SERVICE" \
+      io.containers.security.capabilities.drop="ALL" \
+      io.containers.security.no-new-privileges="true" \
+      io.containers.security.read-only-root-filesystem="false"
+

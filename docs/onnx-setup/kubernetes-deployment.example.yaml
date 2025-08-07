@@ -1,0 +1,398 @@
+# Example Kubernetes deployment for MarkdownStructureChunker with ONNX
+# This demonstrates a production-ready Kubernetes setup
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: markdown-chunker
+  labels:
+    app: markdown-chunker
+
+---
+# ConfigMap for ONNX configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onnx-config
+  namespace: markdown-chunker
+data:
+  model-path: "/app/models/multilingual-e5-large/model.onnx"
+  tokenizer-path: "/app/models/multilingual-e5-large/tokenizer.json"
+  inter-op-threads: "4"
+  intra-op-threads: "4"
+  enable-memory-pattern: "1"
+  enable-cpu-mem-arena: "1"
+
+---
+# Secret for sensitive configuration (if needed)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: markdown-chunker
+type: Opaque
+data:
+  # Base64 encoded values
+  api-key: ""  # Add your API keys here if needed
+
+---
+# PersistentVolumeClaim for ONNX models (optional - models can be in image)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: onnx-models-pvc
+  namespace: markdown-chunker
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: fast-ssd  # Adjust based on your cluster
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: markdown-chunker
+  namespace: markdown-chunker
+  labels:
+    app: markdown-chunker
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: markdown-chunker
+  template:
+    metadata:
+      labels:
+        app: markdown-chunker
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      # Init container to warm up models (optional)
+      initContainers:
+      - name: model-warmup
+        image: your-registry/markdown-chunker:latest
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - |
+            echo "Warming up ONNX models..."
+            # Add model warm-up logic here if needed
+            echo "Warm-up completed"
+        env:
+        - name: ONNX_MODEL_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: model-path
+        - name: ONNX_TOKENIZER_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: tokenizer-path
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      
+      # Main application container
+      containers:
+      - name: markdown-chunker
+        image: your-registry/markdown-chunker:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        
+        # Environment variables
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:80"
+        - name: ONNX_MODEL_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: model-path
+        - name: ONNX_TOKENIZER_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: tokenizer-path
+        - name: ONNX_INTER_OP_THREADS
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: inter-op-threads
+        - name: ONNX_INTRA_OP_THREADS
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: intra-op-threads
+        - name: ONNX_ENABLE_MEMORY_PATTERN
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: enable-memory-pattern
+        - name: ONNX_ENABLE_CPU_MEM_ARENA
+          valueFrom:
+            configMapKeyRef:
+              name: onnx-config
+              key: enable-cpu-mem-arena
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+          value: "1"
+        - name: DOTNET_RUNNING_IN_CONTAINER
+          value: "true"
+        
+        # Resource requirements
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            ephemeral-storage: "2Gi"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        # Startup probe for slow model loading
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12  # Allow up to 2 minutes for startup
+          successThreshold: 1
+        
+        # Volume mounts (if using external model storage)
+        # volumeMounts:
+        # - name: onnx-models
+        #   mountPath: /app/models
+        #   readOnly: true
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # Set to true if app supports it
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes (if using external model storage)
+      # volumes:
+      # - name: onnx-models
+      #   persistentVolumeClaim:
+      #     claimName: onnx-models-pvc
+      
+      # Node selection and affinity
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - markdown-chunker
+              topologyKey: kubernetes.io/hostname
+      
+      # Tolerations (if needed for specific nodes)
+      # tolerations:
+      # - key: "dedicated"
+      #   operator: "Equal"
+      #   value: "ml-workloads"
+      #   effect: "NoSchedule"
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: markdown-chunker-service
+  namespace: markdown-chunker
+  labels:
+    app: markdown-chunker
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: markdown-chunker
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: markdown-chunker-hpa
+  namespace: markdown-chunker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: markdown-chunker
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: markdown-chunker-pdb
+  namespace: markdown-chunker
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: markdown-chunker
+
+---
+# Network Policy (optional - for network security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: markdown-chunker-netpol
+  namespace: markdown-chunker
+spec:
+  podSelector:
+    matchLabels:
+      app: markdown-chunker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - {}  # Allow all egress traffic
+
+---
+# Ingress (adjust based on your ingress controller)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: markdown-chunker-ingress
+  namespace: markdown-chunker
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # If using cert-manager
+spec:
+  tls:
+  - hosts:
+    - markdown-chunker.yourdomain.com
+    secretName: markdown-chunker-tls
+  rules:
+  - host: markdown-chunker.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: markdown-chunker-service
+            port:
+              number: 80
+

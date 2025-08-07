@@ -1,0 +1,77 @@
+# Example Dockerfile for MarkdownStructureChunker with ONNX Models
+# This demonstrates how to build a container with pre-downloaded ONNX models
+
+# Multi-stage build for optimal image size
+FROM python:3.11-slim AS onnx-downloader
+
+# Install dependencies for model download
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install huggingface_hub
+RUN pip install huggingface_hub
+
+# Copy setup script
+COPY docs/onnx-setup/setup-onnx.sh /tmp/setup-onnx.sh
+RUN chmod +x /tmp/setup-onnx.sh
+
+# Download ONNX models
+ENV ONNX_MODEL_DIR=/models/multilingual-e5-large
+RUN /tmp/setup-onnx.sh
+
+# Verify the download
+RUN /models/multilingual-e5-large/test-setup.py
+
+# Build stage for .NET application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy project files
+COPY ["Core/Core.csproj", "Core/"]
+COPY ["Demo/Demo.csproj", "Demo/"]
+RUN dotnet restore "Demo/Demo.csproj"
+
+# Copy source code and build
+COPY . .
+WORKDIR "/src/Demo"
+RUN dotnet build "Demo.csproj" -c Release -o /app/build
+RUN dotnet publish "Demo.csproj" -c Release -o /app/publish
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+# Install runtime dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy application
+COPY --from=build /app/publish .
+
+# Copy ONNX models from downloader stage
+COPY --from=onnx-downloader /models /app/models
+
+# Set environment variables for ONNX
+ENV ONNX_MODEL_PATH=/app/models/multilingual-e5-large/model.onnx
+ENV ONNX_TOKENIZER_PATH=/app/models/multilingual-e5-large/tokenizer.json
+ENV ONNX_INTER_OP_THREADS=4
+ENV ONNX_INTRA_OP_THREADS=4
+
+# Performance optimization
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# Expose port
+EXPOSE 80
+
+# Start application
+ENTRYPOINT ["dotnet", "Demo.dll"]
+
