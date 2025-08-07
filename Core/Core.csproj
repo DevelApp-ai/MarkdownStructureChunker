@@ -8,8 +8,9 @@
     <!-- NuGet Package Metadata -->
     <PackageId>MarkdownStructureChunker</PackageId>
     <!-- Version will be set by GitVersion during build -->
-    <Authors>DevelApp.ai</Authors>
-    <Company>DevelApp.ai</Company>
+    <Authors>DevelApp</Authors>
+    <Company>DevelApp</Company>
+    <Owners>DevelApp</Owners>
     <Product>MarkdownStructureChunker</Product>
     <Description>A powerful .NET library for intelligent document structure analysis and chunking. Automatically identifies and parses various document patterns including Markdown headings, numeric outlines, legal sections, and appendices. Features hierarchical content organization, advanced keyword extraction with ML.NET, and ONNX vectorization support for semantic embeddings.</Description>
     <Summary>Intelligent document structure analysis and chunking library for .NET with ML.NET and ONNX support</Summary>
@@ -29,7 +30,7 @@
       - Comprehensive test suite with 66 test cases
       - Production-ready with proper error handling and resource management
     </PackageReleaseNotes>
-    <Copyright>Copyright © 2025 DevelApp.ai</Copyright>
+    <Copyright>Copyright © 2025 DevelApp</Copyright>
     <AssemblyTitle>MarkdownStructureChunker</AssemblyTitle>
     <AssemblyDescription>Intelligent document structure analysis and chunking library</AssemblyDescription>
     
