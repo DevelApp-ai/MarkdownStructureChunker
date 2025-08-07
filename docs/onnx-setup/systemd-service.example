@@ -1,0 +1,287 @@
+# Example systemd service files for Podman deployment
+# These demonstrate different approaches to running MarkdownStructureChunker as a system service
+
+# =============================================================================
+# 1. System-wide service (requires root)
+# File: /etc/systemd/system/markdown-chunker.service
+# =============================================================================
+
+[Unit]
+Description=MarkdownStructureChunker with ONNX Models
+Documentation=https://github.com/DevelApp-ai/MarkdownStructureChunker
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/containers
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment=PODMAN_SYSTEMD_UNIT=%n
+
+# Pre-start: Pull latest image
+ExecStartPre=/usr/bin/podman pull localhost/markdown-chunker:latest
+
+# Main command
+ExecStart=/usr/bin/podman run \
+    --rm \
+    --name markdown-chunker-systemd \
+    --publish 8080:8080 \
+    --env ONNX_INTER_OP_THREADS=4 \
+    --env ONNX_INTRA_OP_THREADS=4 \
+    --env ASPNETCORE_ENVIRONMENT=Production \
+    --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+    --health-interval=30s \
+    --health-timeout=10s \
+    --health-retries=3 \
+    --health-start-period=60s \
+    --log-driver=journald \
+    --log-opt tag=markdown-chunker \
+    localhost/markdown-chunker:latest
+
+# Stop command with graceful shutdown
+ExecStop=/usr/bin/podman stop --time 30 markdown-chunker-systemd
+
+# Reload command
+ExecReload=/usr/bin/podman kill --signal HUP markdown-chunker-systemd
+
+# Restart settings
+Restart=always
+RestartSec=10
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+# Security settings
+User=podman-user
+Group=podman-user
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/containers
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Resource limits
+MemoryLimit=4G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target
+
+# =============================================================================
+# 2. User service (rootless)
+# File: ~/.config/systemd/user/markdown-chunker.service
+# =============================================================================
+
+[Unit]
+Description=MarkdownStructureChunker (User Service)
+Documentation=https://github.com/DevelApp-ai/MarkdownStructureChunker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment=PODMAN_SYSTEMD_UNIT=%n
+
+# Pre-start: Pull latest image
+ExecStartPre=%h/.local/bin/podman pull localhost/markdown-chunker:latest
+
+# Main command (rootless)
+ExecStart=%h/.local/bin/podman run \
+    --rm \
+    --name markdown-chunker-user \
+    --publish 8080:8080 \
+    --env ONNX_INTER_OP_THREADS=4 \
+    --env ONNX_INTRA_OP_THREADS=4 \
+    --env ASPNETCORE_ENVIRONMENT=Production \
+    --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+    --health-interval=30s \
+    --log-driver=journald \
+    --log-opt tag=markdown-chunker-user \
+    localhost/markdown-chunker:latest
+
+# Stop command
+ExecStop=%h/.local/bin/podman stop --time 30 markdown-chunker-user
+
+# Restart settings
+Restart=always
+RestartSec=10
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
+
+# =============================================================================
+# 3. Pod-based service with Redis
+# File: /etc/systemd/system/markdown-chunker-pod.service
+# =============================================================================
+
+[Unit]
+Description=MarkdownStructureChunker Pod with Redis
+Documentation=https://github.com/DevelApp-ai/MarkdownStructureChunker
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/containers
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment=PODMAN_SYSTEMD_UNIT=%n
+
+# Create pod
+ExecStartPre=/usr/bin/podman pod create \
+    --name markdown-chunker-pod \
+    --publish 8080:8080 \
+    --publish 6379:6379 \
+    --replace
+
+# Start Redis in pod
+ExecStartPre=/usr/bin/podman run \
+    --detach \
+    --name redis \
+    --pod markdown-chunker-pod \
+    --health-cmd="redis-cli ping" \
+    --health-interval=30s \
+    redis:7-alpine redis-server --appendonly yes
+
+# Start main application in pod
+ExecStart=/usr/bin/podman run \
+    --name markdown-chunker-app \
+    --pod markdown-chunker-pod \
+    --env REDIS_CONNECTION_STRING=localhost:6379 \
+    --env ONNX_INTER_OP_THREADS=4 \
+    --env ONNX_INTRA_OP_THREADS=4 \
+    --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+    --health-interval=30s \
+    localhost/markdown-chunker:latest
+
+# Stop pod
+ExecStop=/usr/bin/podman pod stop --time 30 markdown-chunker-pod
+
+# Remove pod on stop
+ExecStopPost=/usr/bin/podman pod rm --force markdown-chunker-pod
+
+# Restart settings
+Restart=always
+RestartSec=15
+TimeoutStartSec=300
+TimeoutStopSec=90
+
+# Security
+User=podman-user
+Group=podman-user
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+
+# =============================================================================
+# 4. High-availability service with auto-scaling
+# File: /etc/systemd/system/markdown-chunker-ha.service
+# =============================================================================
+
+[Unit]
+Description=MarkdownStructureChunker High Availability
+Documentation=https://github.com/DevelApp-ai/MarkdownStructureChunker
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/containers
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Environment=INSTANCE_COUNT=3
+
+# Create load balancer network
+ExecStartPre=/usr/bin/podman network create markdown-chunker-net --ignore
+
+# Start multiple instances
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 $INSTANCE_COUNT); do \
+    /usr/bin/podman run -d \
+        --name markdown-chunker-$i \
+        --network markdown-chunker-net \
+        --env ONNX_INTER_OP_THREADS=2 \
+        --env ONNX_INTRA_OP_THREADS=2 \
+        --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+        --health-interval=30s \
+        localhost/markdown-chunker:latest; \
+done'
+
+# Start nginx load balancer
+ExecStart=/usr/bin/podman run \
+    --name nginx-lb \
+    --network markdown-chunker-net \
+    --publish 8080:80 \
+    --volume /etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+    nginx:alpine
+
+# Health check script
+ExecStartPost=/bin/bash -c 'sleep 30; \
+    for i in $(seq 1 60); do \
+        if curl -f http://localhost:8080/health; then break; fi; \
+        sleep 5; \
+    done'
+
+# Stop all containers
+ExecStop=/bin/bash -c 'for i in $(seq 1 $INSTANCE_COUNT); do \
+    /usr/bin/podman stop --time 30 markdown-chunker-$i; \
+done'
+ExecStop=/usr/bin/podman stop --time 30 nginx-lb
+
+# Cleanup
+ExecStopPost=/bin/bash -c 'for i in $(seq 1 $INSTANCE_COUNT); do \
+    /usr/bin/podman rm --force markdown-chunker-$i; \
+done'
+ExecStopPost=/usr/bin/podman rm --force nginx-lb
+ExecStopPost=/usr/bin/podman network rm markdown-chunker-net --ignore
+
+# Restart settings
+Restart=always
+RestartSec=20
+TimeoutStartSec=600
+TimeoutStopSec=120
+
+# Security
+User=podman-user
+Group=podman-user
+
+[Install]
+WantedBy=multi-user.target
+
+# =============================================================================
+# Installation and Management Commands
+# =============================================================================
+
+# Install system service:
+# sudo cp markdown-chunker.service /etc/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable markdown-chunker.service
+# sudo systemctl start markdown-chunker.service
+
+# Install user service:
+# mkdir -p ~/.config/systemd/user
+# cp markdown-chunker.service ~/.config/systemd/user/
+# systemctl --user daemon-reload
+# systemctl --user enable markdown-chunker.service
+# systemctl --user start markdown-chunker.service
+
+# Enable user services to start at boot:
+# sudo loginctl enable-linger $USER
+
+# Check service status:
+# systemctl status markdown-chunker.service
+# systemctl --user status markdown-chunker.service
+
+# View logs:
+# journalctl -u markdown-chunker.service -f
+# journalctl --user -u markdown-chunker.service -f
+
+# Restart service:
+# sudo systemctl restart markdown-chunker.service
+# systemctl --user restart markdown-chunker.service
+
+# Stop service:
+# sudo systemctl stop markdown-chunker.service
+# systemctl --user stop markdown-chunker.service
+

@@ -48,6 +48,23 @@ WORKDIR /app
 ENTRYPOINT ["dotnet", "YourApp.dll"]
 ```
 
+### Podman Example (Rootless & Secure)
+```bash
+# Build with Podman-optimized Containerfile
+podman build -f docs/onnx-setup/Containerfile.podman -t markdown-chunker:latest .
+
+# Run rootless container
+podman run -d \
+  --name markdown-chunker \
+  -p 8080:8080 \
+  --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+  --health-interval=30s \
+  markdown-chunker:latest
+
+# Or use Podman Compose
+podman-compose -f docs/onnx-setup/podman-compose.yml up -d
+```
+
 ### Kubernetes ConfigMap
 ```yaml
 apiVersion: v1
@@ -179,6 +196,8 @@ models/
 - [ONNX Runtime Documentation](https://onnxruntime.ai/docs/)
 - [Microsoft.ML.Tokenizers](https://www.nuget.org/packages/Microsoft.ML.Tokenizers/)
 - [Container Deployment Examples](./container-examples.md)
+- [Podman Deployment Guide](./podman-examples.md)
+- [Manual Setup Instructions](./manual-setup.md)
 
 ## 📝 License
 
