@@ -32,14 +32,14 @@ If you want to include the library in your existing project:
 
 ```bash
 # Add the core library as a project reference
-dotnet add reference path/to/MarkdownStructureChunker.Core/MarkdownStructureChunker.Core.csproj
+dotnet add reference path/to/MarkdownStructureChunker/Core/Core.csproj
 ```
 
 ### Option 3: NuGet Package (Future)
 
 ```bash
 # Install via NuGet (when published)
-dotnet add package MarkdownStructureChunker.Core
+dotnet add package MarkdownStructureChunker
 ```
 
 ## Your First Document Processing
@@ -56,7 +56,7 @@ cd MyDocumentProcessor
 ### Step 2: Add Reference to MarkdownStructureChunker
 
 ```bash
-dotnet add reference ../MarkdownStructureChunker/MarkdownStructureChunker.Core/MarkdownStructureChunker.Core.csproj
+dotnet add reference ../MarkdownStructureChunker/Core/Core.csproj
 ```
 
 ### Step 3: Write Your First Program
