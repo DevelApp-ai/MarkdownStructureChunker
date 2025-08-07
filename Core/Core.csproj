@@ -10,6 +10,7 @@
     <!-- Version will be set by GitVersion during build -->
     <Authors>DevelApp.ai</Authors>
     <Company>DevelApp.ai</Company>
+    <Owners>DevelApp-ai</Owners>
     <Product>MarkdownStructureChunker</Product>
     <Description>A powerful .NET library for intelligent document structure analysis and chunking. Automatically identifies and parses various document patterns including Markdown headings, numeric outlines, legal sections, and appendices. Features hierarchical content organization, advanced keyword extraction with ML.NET, and ONNX vectorization support for semantic embeddings.</Description>
     <Summary>Intelligent document structure analysis and chunking library for .NET with ML.NET and ONNX support</Summary>
