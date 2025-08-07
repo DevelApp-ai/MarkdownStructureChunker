@@ -209,7 +209,7 @@ public class MLNetKeywordExtractorTests
         Assert.NotEmpty(result);
         
         // Should extract some technical terms (but not necessarily all specific ones)
-        Assert.True(result.Any(k => k.Contains("attention") || k.Contains("model") || k.Contains("architecture")));
+        Assert.Contains(result, k => k.Contains("attention") || k.Contains("model") || k.Contains("architecture"));
     }
 
     [Fact]
