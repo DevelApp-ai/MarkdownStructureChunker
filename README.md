@@ -328,12 +328,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [ ] Support for PDF document parsing
-- [ ] Integration with Azure Cognitive Services
 - [ ] Support for custom ONNX models
 - [ ] Performance optimizations for large documents
 - [ ] Additional language support for keyword extraction
-- [ ] Real-time document processing capabilities
 
 ## Support
 
