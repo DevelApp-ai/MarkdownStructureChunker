@@ -1,9 +1,10 @@
 name: .NET CI/CD
 
-# Triggers the workflow on pushes to main branch only
-# PRs are handled by the separate pr-validation.yml workflow
+# Triggers the workflow on pushes to main branch and pull requests
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 permissions:
@@ -116,7 +117,8 @@ jobs:
         if-no-files-found: error
 
     - name: Publish to NuGet (Stable Release)
-      # This step runs for all pushes to main branch
+      # Only publish to NuGet.org for pushes to main branch (stable releases)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
         echo "Publishing stable release packages to NuGet.org..."
         dotnet nuget push ./artifacts/*.nupkg \
@@ -141,8 +143,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create GitHub Release
-      # Create a GitHub release for stable versions (non-pre-release only)
-      if: !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
+      # Create a GitHub release for stable versions on main branch only (non-pre-release only)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.gitversion.outputs.semVer }}
