@@ -7,7 +7,7 @@
     
     <!-- NuGet Package Metadata -->
     <PackageId>MarkdownStructureChunker</PackageId>
-    <Version>1.0.0</Version>
+    <!-- Version will be set by GitVersion during build -->
     <Authors>DevelApp.ai</Authors>
     <Company>DevelApp.ai</Company>
     <Product>MarkdownStructureChunker</Product>
@@ -20,7 +20,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-      v1.0.0 - Initial release
+      Intelligent document structure analysis and chunking library for .NET
       - Pattern-based document structure recognition
       - Hierarchical chunk organization with parent-child relationships
       - Multiple keyword extraction strategies (Simple and ML.NET)
@@ -32,12 +32,16 @@
     <Copyright>Copyright © 2025 DevelApp.ai</Copyright>
     <AssemblyTitle>MarkdownStructureChunker</AssemblyTitle>
     <AssemblyDescription>Intelligent document structure analysis and chunking library</AssemblyDescription>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    
+    <!-- SourceLink Support for Source Code Transparency -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    
+    <!-- Package Generation -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,6 +54,9 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
     <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.2" />
     <PackageReference Include="System.Numerics.Tensors" Version="9.0.7" />
+    
+    <!-- SourceLink for Source Code Transparency -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

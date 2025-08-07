@@ -15,6 +15,12 @@ A powerful .NET library for intelligent document structure analysis and chunking
 
 ### Installation
 
+#### Via NuGet (Recommended)
+```bash
+dotnet add package MarkdownStructureChunker
+```
+
+#### Via Source Code
 ```bash
 # Clone the repository
 git clone https://github.com/DevelApp-ai/MarkdownStructureChunker.git

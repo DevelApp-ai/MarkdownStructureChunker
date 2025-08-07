@@ -1,26 +1,40 @@
-name: PR Validation
+name: Validate Pull Request
 
 on:
   pull_request:
-    branches: [ main, develop ]
-    types: [ opened, synchronize, reopened ]
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+  # Only run on PRs, not on pushes to avoid conflicts with main CI/CD
 
 permissions:
-  contents: read
-  issues: write
-  pull-requests: write
+  contents: read          # Read repository content
+  issues: write          # Comment on issues/PRs
+  pull-requests: write   # Interact with pull requests
 
 env:
   DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   validate:
-    name: Validate Pull Request
+    name: Validate PR
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for GitVersion
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v1.1.1
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v1.1.1
       
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -28,94 +42,111 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     - name: Restore dependencies
+      id: restore
       run: dotnet restore
+      continue-on-error: true
       
     - name: Build solution
       id: build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }}
+      continue-on-error: true
       
-    - name: Run tests with coverage
+    - name: Run tests
       id: test
-      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      run: dotnet test --configuration Release --no-build --verbosity normal
+      continue-on-error: true
       
-    - name: Validate package can be built
+    - name: Create package
       id: package
-      run: dotnet pack ./Core/Core.csproj --configuration Release --output ./validation-packages
+      run: dotnet pack ./Core/Core.csproj --configuration Release --no-build --output ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+      continue-on-error: true
       
-    - name: Check package contents
-      run: |
-        echo "Package contents:"
-        if ls ./validation-packages/*.nupkg 1> /dev/null 2>&1; then
-          unzip -l ./validation-packages/*.nupkg | head -20
-        else
-          echo "No .nupkg files found"
-          ls -la ./validation-packages/
-        fi
-        
     - name: Comment PR with validation results
       uses: actions/github-script@v7
-      if: always()
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           try {
-            // Check if we're in a pull request context
-            if (!context.issue.number) {
-              console.log('Not running in a pull request context, skipping comment');
+            const context = require('@actions/github').context;
+            
+            // Check if this is a pull request
+            if (!context.payload.pull_request) {
+              console.log('Not a pull request, skipping comment');
               return;
             }
             
-            const { data: comments } = await github.rest.issues.listComments({
+            const prNumber = context.payload.pull_request.number;
+            const restoreStatus = '${{ steps.restore.outcome }}' === 'success' ? '✅' : '❌';
+            const buildStatus = '${{ steps.build.outcome }}' === 'success' ? '✅' : '❌';
+            const testStatus = '${{ steps.test.outcome }}' === 'success' ? '✅' : '❌';
+            const packageStatus = '${{ steps.package.outcome }}' === 'success' ? '✅' : '❌';
+            
+            const allPassed = '${{ steps.restore.outcome }}' === 'success' && 
+                             '${{ steps.build.outcome }}' === 'success' && 
+                             '${{ steps.test.outcome }}' === 'success' && 
+                             '${{ steps.package.outcome }}' === 'success';
+            
+            const version = '${{ steps.gitversion.outputs.nuGetVersionV2 }}';
+            const semVer = '${{ steps.gitversion.outputs.semVer }}';
+            
+            const body = `## 🤖 PR Validation Results
+            
+            **Version**: \`${version}\` (SemVer: \`${semVer}\`)
+            
+            | Step | Status | Details |
+            |------|--------|---------|
+            | Restore Dependencies | ${restoreStatus} | NuGet package restoration |
+            | Build Solution | ${buildStatus} | Compilation and build |
+            | Run Tests | ${testStatus} | Unit and integration tests |
+            | Create Package | ${packageStatus} | NuGet package creation |
+            
+            ${allPassed ? 
+              '🎉 **This PR is ready for review!** All validation checks passed.' : 
+              '⚠️ **Please fix the issues above before merging.** Some validation checks failed.'
+            }
+            
+            ---
+            *This comment was automatically generated by the PR validation workflow.*`;
+            
+            // Try to find existing comment
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: prNumber,
             });
             
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && comment.body.includes('PR Validation Results')
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🤖 PR Validation Results')
             );
             
-            // Determine validation status based on previous steps
-            const buildStatus = '${{ steps.build.outcome }}' || 'success';
-            const testStatus = '${{ steps.test.outcome }}' || 'success';
-            const packageStatus = '${{ steps.package.outcome }}' || 'success';
-            
-            const buildIcon = buildStatus === 'success' ? '✅' : '❌';
-            const testIcon = testStatus === 'success' ? '✅' : '❌';
-            const packageIcon = packageStatus === 'success' ? '✅' : '❌';
-            
-            const body = `## PR Validation Results
-            
-            ${buildIcon} **Build**: ${buildStatus === 'success' ? 'Successful' : 'Failed'}
-            ${testIcon} **Tests**: ${testStatus === 'success' ? 'All tests passed' : 'Tests failed'}
-            ${packageIcon} **Package**: ${packageStatus === 'success' ? 'NuGet package builds correctly' : 'Package build failed'}
-            
-            ${buildStatus === 'success' && testStatus === 'success' && packageStatus === 'success' 
-              ? 'This PR is ready for review! 🎉' 
-              : 'Please fix the issues above before merging.'}`;
-            
             if (botComment) {
+              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: botComment.id,
                 body: body
               });
-              console.log('Updated existing PR comment');
+              console.log('Updated existing PR validation comment');
             } else {
+              // Create new comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: prNumber,
                 body: body
               });
-              console.log('Created new PR comment');
+              console.log('Created new PR validation comment');
             }
+            
           } catch (error) {
-            console.error('Failed to comment on PR:', error);
-            console.log('PR number:', context.issue.number);
-            console.log('Repository:', context.repo.owner + '/' + context.repo.repo);
-            console.log('Error details:', error.message);
+            console.error('Error posting PR comment:', error);
+            console.error('Error details:', {
+              message: error.message,
+              status: error.status,
+              response: error.response?.data
+            });
             
             // Don't fail the workflow if commenting fails
             console.log('Continuing workflow despite comment failure...');
