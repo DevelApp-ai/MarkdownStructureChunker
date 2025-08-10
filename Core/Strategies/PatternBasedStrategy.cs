@@ -1,5 +1,6 @@
 using MarkdownStructureChunker.Core.Interfaces;
 using MarkdownStructureChunker.Core.Models;
+using MarkdownStructureChunker.Core.Configuration;
 using System.Text;
 
 namespace MarkdownStructureChunker.Core.Strategies;
@@ -7,10 +8,12 @@ namespace MarkdownStructureChunker.Core.Strategies;
 /// <summary>
 /// Pattern-based chunking strategy that uses configurable regular expressions
 /// to identify headings and structure in documents.
+/// Enhanced version with ChunkerConfiguration support for size limits and overlap.
 /// </summary>
 public class PatternBasedStrategy : IChunkingStrategy
 {
     private readonly List<ChunkingRule> _rules;
+    private readonly ChunkerConfiguration? _configuration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PatternBasedStrategy"/> class with the specified chunking rules.
@@ -24,10 +27,32 @@ public class PatternBasedStrategy : IChunkingStrategy
         
         if (!_rules.Any())
             throw new ArgumentException("At least one chunking rule must be provided", nameof(rules));
+        
+        _configuration = null; // Legacy constructor without configuration
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PatternBasedStrategy"/> class with chunking rules and configuration.
+    /// Enhanced constructor that supports ChunkerConfiguration for size limits and overlap.
+    /// </summary>
+    /// <param name="rules">The collection of chunking rules to use for document processing, ordered by priority.</param>
+    /// <param name="configuration">Configuration settings for chunking behavior.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="rules"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="rules"/> is empty.</exception>
+    public PatternBasedStrategy(IEnumerable<ChunkingRule> rules, ChunkerConfiguration? configuration)
+    {
+        _rules = rules?.OrderBy(r => r.Priority).ToList() ?? throw new ArgumentNullException(nameof(rules));
+        
+        if (!_rules.Any())
+            throw new ArgumentException("At least one chunking rule must be provided", nameof(rules));
+        
+        _configuration = configuration;
     }
 
     /// <summary>
     /// Processes the input text and returns a list of structured chunks.
+    /// Enhanced version that respects ChunkerConfiguration settings for size limits and overlap.
+    /// Now includes offset calculation and original markdown preservation.
     /// </summary>
     /// <param name="text">The input document text</param>
     /// <param name="sourceId">Identifier for the source document</param>
@@ -41,6 +66,18 @@ public class PatternBasedStrategy : IChunkingStrategy
         var chunks = new List<ChunkNode>();
         var contextStack = new Stack<ChunkNode>();
         var currentContent = new StringBuilder();
+        
+        // Track character positions for offset calculation
+        var currentOffset = 0;
+        var lineOffsets = new List<int>();
+        
+        // Calculate line start positions
+        lineOffsets.Add(0);
+        for (int i = 0; i < lines.Length - 1; i++)
+        {
+            currentOffset += lines[i].Length + Environment.NewLine.Length;
+            lineOffsets.Add(currentOffset);
+        }
 
         // Create a root chunk to handle content before the first heading
         var rootChunk = new ChunkNode
@@ -49,12 +86,18 @@ public class PatternBasedStrategy : IChunkingStrategy
             ChunkType = "Root",
             RawTitle = "Document Root",
             CleanTitle = "Document Root",
-            Content = string.Empty
+            Content = string.Empty,
+            StartOffset = 0,
+            EndOffset = 0
         };
         contextStack.Push(rootChunk);
 
-        foreach (var line in lines)
+        var contentStartLine = 0;
+        var headingHierarchy = new List<string>();
+
+        for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
         {
+            var line = lines[lineIndex];
             var match = TryMatchLine(line);
             
             if (match != null)
@@ -67,11 +110,19 @@ public class PatternBasedStrategy : IChunkingStrategy
                     
                     if (!string.IsNullOrEmpty(contentToAdd))
                     {
+                        // Calculate content offsets
+                        var contentStartOffset = lineOffsets[contentStartLine];
+                        var contentEndOffset = lineIndex > 0 ? lineOffsets[lineIndex] - Environment.NewLine.Length : lineOffsets[lineIndex];
+                        
                         var updatedChunk = currentChunk with 
                         { 
                             Content = string.IsNullOrEmpty(currentChunk.Content) 
                                 ? contentToAdd 
-                                : currentChunk.Content + "\n\n" + contentToAdd
+                                : currentChunk.Content + "\n\n" + contentToAdd,
+                            EndOffset = contentEndOffset,
+                            OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
+                                ? ExtractOriginalMarkdown(text, currentChunk.StartOffset, contentEndOffset)
+                                : string.Empty
                         };
                         
                         // Update the chunk in the results if it exists
@@ -88,20 +139,41 @@ public class PatternBasedStrategy : IChunkingStrategy
                     
                     currentContent.Clear();
                 }
-
-                // Create new chunk from the match
-                var newChunk = CreateChunkFromMatch(match, contextStack);
                 
-                // Manage the context stack based on hierarchical levels
+                // Update heading hierarchy BEFORE creating the chunk
+                UpdateHeadingHierarchy(headingHierarchy, match);
+                
+                // Get parent heading and parent ID by finding the appropriate parent
+                var parentHeading = string.Empty;
+                Guid? parentId = null;
+                if (contextStack.Count > 0)
+                {
+                    // Find the appropriate parent by looking for a chunk with level < match.Level
+                    var stackItems = contextStack.ToArray(); // Get current stack as array (top to bottom)
+                    foreach (var item in stackItems)
+                    {
+                        if (item.Level < match.Level && item.ChunkType != "Root")
+                        {
+                            parentHeading = item.CleanTitle ?? string.Empty;
+                            parentId = item.Id;
+                            break;
+                        }
+                    }
+                }
+                
+                // Create the chunk with the updated hierarchy and correct parent
+                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy, parentHeading);
+                var chunkWithParent = newChunk with { ParentId = parentId };
+                
+                // Manage the context stack based on hierarchical levels AFTER setting parent
                 AdjustContextStack(contextStack, newChunk.Level);
-                
-                // Set parent relationship
-                var parent = contextStack.Count > 0 ? contextStack.Peek() : null;
-                var chunkWithParent = newChunk with { ParentId = parent?.Id };
                 
                 // Add to results and push to stack
                 chunks.Add(chunkWithParent);
                 contextStack.Push(chunkWithParent);
+                
+                // Reset content tracking
+                contentStartLine = lineIndex + 1;
             }
             else
             {
@@ -118,11 +190,17 @@ public class PatternBasedStrategy : IChunkingStrategy
             
             if (!string.IsNullOrEmpty(contentToAdd))
             {
+                var contentEndOffset = text.Length;
+                
                 var updatedChunk = currentChunk with 
                 { 
                     Content = string.IsNullOrEmpty(currentChunk.Content) 
                         ? contentToAdd 
-                        : currentChunk.Content + "\n\n" + contentToAdd
+                        : currentChunk.Content + "\n\n" + contentToAdd,
+                    EndOffset = contentEndOffset,
+                    OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
+                        ? ExtractOriginalMarkdown(text, currentChunk.StartOffset, contentEndOffset)
+                        : string.Empty
                 };
                 
                 // Update the chunk in the results if it exists
@@ -134,8 +212,19 @@ public class PatternBasedStrategy : IChunkingStrategy
             }
         }
 
-        // Remove the root chunk if it has no content and return only actual document chunks
-        return chunks.Where(c => c.ChunkType != "Root").ToList();
+        // Remove the root chunk if it has no content and get actual document chunks
+        var documentChunks = chunks.Where(c => c.ChunkType != "Root").ToList();
+        
+        // Apply configuration-based post-processing
+        if (_configuration != null)
+        {
+            documentChunks = ApplyConfigurationConstraints(documentChunks);
+        }
+
+        // Build parent-child relationships
+        documentChunks = BuildParentChildRelationships(documentChunks);
+
+        return documentChunks;
     }
 
     /// <summary>
@@ -170,11 +259,117 @@ public class PatternBasedStrategy : IChunkingStrategy
         {
             Id = Guid.NewGuid(),
             Level = match.Level,
-            ChunkType = match.Type,
+            ChunkType = match.Type ?? string.Empty,
             RawTitle = match.RawTitle,
             CleanTitle = match.CleanTitle,
             Content = string.Empty
         };
+    }
+
+    /// <summary>
+    /// Creates a chunk from a match with offset information and heading hierarchy.
+    /// Enhanced version that includes StartOffset, EndOffset, HeadingHierarchy, and other metadata.
+    /// </summary>
+    /// <param name="match">The chunking match</param>
+    /// <param name="contextStack">The current context stack</param>
+    /// <param name="startOffset">The character offset where this chunk starts</param>
+    /// <param name="originalText">The original document text</param>
+    /// <param name="headingHierarchy">The current heading hierarchy</param>
+    /// <param name="parentHeading">The title of the parent heading</param>
+    /// <returns>A new chunk node with complete metadata</returns>
+    private ChunkNode CreateChunkFromMatchWithOffsets(ChunkingMatch match, Stack<ChunkNode> contextStack, 
+        int startOffset, string originalText, List<string> headingHierarchy, string parentHeading)
+    {
+        // Determine if this is a heading chunk
+        var isHeading = match.Type?.Contains("Heading") == true || 
+                       match.Type?.Contains("Markdown") == true ||
+                       !string.IsNullOrEmpty(match.RawTitle);
+
+        // Determine chunk type enum
+        var chunkTypeEnum = DetermineChunkType(match, isHeading);
+
+        return new ChunkNode
+        {
+            Id = Guid.NewGuid(),
+            Level = match.Level,
+            ChunkType = match.Type ?? string.Empty,
+            RawTitle = match.RawTitle ?? string.Empty,
+            CleanTitle = match.CleanTitle ?? string.Empty,
+            Content = string.Empty,
+            StartOffset = startOffset,
+            EndOffset = startOffset, // Will be updated when content is added
+            HeadingHierarchy = new List<string>(headingHierarchy),
+            SectionLevel = match.Level,
+            IsHeading = isHeading,
+            ParentHeading = parentHeading,
+            ChunkTypeEnum = chunkTypeEnum,
+            OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
+                ? ExtractOriginalMarkdown(originalText, startOffset, startOffset + match.RawTitle?.Length ?? 0)
+                : string.Empty
+        };
+    }
+
+    /// <summary>
+    /// Updates the heading hierarchy based on the new match.
+    /// </summary>
+    /// <param name="headingHierarchy">The current heading hierarchy to update</param>
+    /// <param name="match">The new match being added</param>
+    private static void UpdateHeadingHierarchy(List<string> headingHierarchy, ChunkingMatch match)
+    {
+        // Only update hierarchy for headings
+        if (string.IsNullOrEmpty(match.CleanTitle) || !match.Type?.Contains("H") == true)
+            return;
+
+        // Adjust hierarchy based on level - remove deeper levels
+        while (headingHierarchy.Count >= match.Level)
+        {
+            headingHierarchy.RemoveAt(headingHierarchy.Count - 1);
+        }
+
+        // Add the new heading at the correct level
+        headingHierarchy.Add(match.CleanTitle);
+    }
+
+    /// <summary>
+    /// Determines the ChunkType enumeration value based on the match and context.
+    /// </summary>
+    /// <param name="match">The chunking match</param>
+    /// <param name="isHeading">Whether this chunk represents a heading</param>
+    /// <returns>The appropriate ChunkType enum value</returns>
+    private static ChunkType DetermineChunkType(ChunkingMatch match, bool isHeading)
+    {
+        if (isHeading)
+        {
+            return ChunkType.Header;
+        }
+
+        return match.Type?.ToLowerInvariant() switch
+        {
+            var t when t?.Contains("list") == true => ChunkType.ListItem,
+            var t when t?.Contains("table") == true => ChunkType.Table,
+            var t when t?.Contains("code") == true => ChunkType.CodeBlock,
+            var t when t?.Contains("quote") == true => ChunkType.Quote,
+            var t when t?.Contains("legal") == true => ChunkType.Legal,
+            var t when t?.Contains("numeric") == true => ChunkType.Numeric,
+            var t when t?.Contains("section") == true => ChunkType.Section,
+            var t when t?.Contains("appendix") == true => ChunkType.Appendix,
+            _ => ChunkType.Content
+        };
+    }
+
+    /// <summary>
+    /// Extracts the original markdown content for a given range.
+    /// </summary>
+    /// <param name="originalText">The original document text</param>
+    /// <param name="startOffset">The start character offset</param>
+    /// <param name="endOffset">The end character offset</param>
+    /// <returns>The original markdown content</returns>
+    private static string ExtractOriginalMarkdown(string originalText, int startOffset, int endOffset)
+    {
+        if (string.IsNullOrEmpty(originalText) || startOffset < 0 || endOffset <= startOffset || endOffset > originalText.Length)
+            return string.Empty;
+
+        return originalText.Substring(startOffset, endOffset - startOffset);
     }
 
     /// <summary>
@@ -193,12 +388,318 @@ public class PatternBasedStrategy : IChunkingStrategy
     }
 
     /// <summary>
-    /// Creates a default set of chunking rules for common document patterns.
+    /// Applies configuration constraints to the chunks, including size limits and overlap.
     /// </summary>
-    /// <returns>A list of default chunking rules</returns>
-    public static List<ChunkingRule> CreateDefaultRules()
+    /// <param name="chunks">The original chunks to process</param>
+    /// <returns>Processed chunks that respect configuration constraints</returns>
+    private List<ChunkNode> ApplyConfigurationConstraints(List<ChunkNode> chunks)
     {
-        return new List<ChunkingRule>
+        if (_configuration == null)
+            return chunks;
+
+        var processedChunks = new List<ChunkNode>();
+
+        foreach (var chunk in chunks)
+        {
+            var chunkContent = chunk.Content ?? string.Empty;
+            
+            // Check if chunk exceeds maximum size
+            if (chunkContent.Length > _configuration.MaxChunkSize)
+            {
+                // Split large chunks while respecting configuration
+                var splitChunks = SplitLargeChunk(chunk, chunkContent);
+                processedChunks.AddRange(splitChunks);
+            }
+            else if (chunkContent.Length < _configuration.MinChunkSize && 
+                     _configuration.PreserveStructure && 
+                     !IsHeadingChunk(chunk))
+            {
+                // Try to merge small chunks with next chunk if possible
+                // For now, keep small chunks as-is to preserve structure
+                processedChunks.Add(chunk);
+            }
+            else
+            {
+                processedChunks.Add(chunk);
+            }
+        }
+
+        // Apply overlap if configured
+        if (_configuration.ChunkOverlap > 0)
+        {
+            processedChunks = ApplyChunkOverlap(processedChunks);
+        }
+
+        return processedChunks;
+    }
+
+    /// <summary>
+    /// Splits a large chunk into smaller chunks while respecting configuration settings.
+    /// </summary>
+    /// <param name="originalChunk">The chunk to split</param>
+    /// <param name="content">The content to split</param>
+    /// <returns>List of smaller chunks</returns>
+    private List<ChunkNode> SplitLargeChunk(ChunkNode originalChunk, string content)
+    {
+        if (_configuration == null)
+            return new List<ChunkNode> { originalChunk };
+
+        var chunks = new List<ChunkNode>();
+        var maxSize = _configuration.MaxChunkSize;
+        var splitOnSentences = _configuration.SplitOnSentences;
+        
+        if (splitOnSentences)
+        {
+            // Split on sentence boundaries
+            var sentences = SplitIntoSentences(content);
+            var currentChunk = new StringBuilder();
+            var chunkIndex = 0;
+
+            foreach (var sentence in sentences)
+            {
+                if (currentChunk.Length + sentence.Length > maxSize && currentChunk.Length > 0)
+                {
+                    // Create chunk from current content
+                    var newChunk = CreateSplitChunk(originalChunk, currentChunk.ToString().Trim(), chunkIndex);
+                    chunks.Add(newChunk);
+                    
+                    currentChunk.Clear();
+                    chunkIndex++;
+                }
+                
+                currentChunk.Append(sentence);
+                if (!sentence.EndsWith(" "))
+                    currentChunk.Append(" ");
+            }
+
+            // Add remaining content
+            if (currentChunk.Length > 0)
+            {
+                var finalChunk = CreateSplitChunk(originalChunk, currentChunk.ToString().Trim(), chunkIndex);
+                chunks.Add(finalChunk);
+            }
+        }
+        else
+        {
+            // Split on word boundaries
+            var words = content.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            var currentChunk = new StringBuilder();
+            var chunkIndex = 0;
+
+            foreach (var word in words)
+            {
+                if (currentChunk.Length + word.Length + 1 > maxSize && currentChunk.Length > 0)
+                {
+                    // Create chunk from current content
+                    var newChunk = CreateSplitChunk(originalChunk, currentChunk.ToString().Trim(), chunkIndex);
+                    chunks.Add(newChunk);
+                    
+                    currentChunk.Clear();
+                    chunkIndex++;
+                }
+                
+                if (currentChunk.Length > 0)
+                    currentChunk.Append(" ");
+                currentChunk.Append(word);
+            }
+
+            // Add remaining content
+            if (currentChunk.Length > 0)
+            {
+                var finalChunk = CreateSplitChunk(originalChunk, currentChunk.ToString().Trim(), chunkIndex);
+                chunks.Add(finalChunk);
+            }
+        }
+
+        return chunks.Any() ? chunks : new List<ChunkNode> { originalChunk };
+    }
+
+    /// <summary>
+    /// Creates a split chunk from the original chunk with new content.
+    /// </summary>
+    /// <param name="originalChunk">The original chunk</param>
+    /// <param name="content">The new content</param>
+    /// <param name="index">The split index</param>
+    /// <returns>A new chunk node</returns>
+    private static ChunkNode CreateSplitChunk(ChunkNode originalChunk, string content, int index)
+    {
+        var suffix = index > 0 ? $" (Part {index + 1})" : "";
+        
+        return originalChunk with
+        {
+            Id = Guid.NewGuid(),
+            Content = content,
+            RawTitle = originalChunk.RawTitle + suffix,
+            CleanTitle = originalChunk.CleanTitle + suffix
+        };
+    }
+
+    /// <summary>
+    /// Splits content into sentences for sentence-boundary splitting.
+    /// </summary>
+    /// <param name="content">The content to split</param>
+    /// <returns>List of sentences</returns>
+    private static List<string> SplitIntoSentences(string content)
+    {
+        // Simple sentence splitting - could be enhanced with more sophisticated NLP
+        var sentences = new List<string>();
+        var sentenceEnders = new[] { '.', '!', '?' };
+        var currentSentence = new StringBuilder();
+
+        for (int i = 0; i < content.Length; i++)
+        {
+            var ch = content[i];
+            currentSentence.Append(ch);
+
+            if (sentenceEnders.Contains(ch))
+            {
+                // Check if this is really the end of a sentence
+                if (i == content.Length - 1 || 
+                    (i < content.Length - 1 && char.IsWhiteSpace(content[i + 1])))
+                {
+                    sentences.Add(currentSentence.ToString());
+                    currentSentence.Clear();
+                }
+            }
+        }
+
+        // Add any remaining content
+        if (currentSentence.Length > 0)
+        {
+            sentences.Add(currentSentence.ToString());
+        }
+
+        return sentences.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+    }
+
+    /// <summary>
+    /// Applies chunk overlap by adding overlapping content between adjacent chunks.
+    /// </summary>
+    /// <param name="chunks">The chunks to process</param>
+    /// <returns>Chunks with overlap applied</returns>
+    private List<ChunkNode> ApplyChunkOverlap(List<ChunkNode> chunks)
+    {
+        if (_configuration == null || _configuration.ChunkOverlap <= 0 || chunks.Count <= 1)
+            return chunks;
+
+        var overlappedChunks = new List<ChunkNode>();
+        
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            var chunk = chunks[i];
+            var content = chunk.Content ?? string.Empty;
+
+            // Add overlap from previous chunk
+            if (i > 0)
+            {
+                var previousChunk = chunks[i - 1];
+                var previousContent = previousChunk.Content ?? string.Empty;
+                
+                if (previousContent.Length > _configuration.ChunkOverlap)
+                {
+                    var overlapContent = previousContent.Substring(previousContent.Length - _configuration.ChunkOverlap);
+                    content = overlapContent + "\n\n" + content;
+                }
+            }
+
+            var updatedChunk = chunk with { Content = content };
+            overlappedChunks.Add(updatedChunk);
+        }
+
+        return overlappedChunks;
+    }
+
+    /// <summary>
+    /// Determines if a chunk represents a heading.
+    /// </summary>
+    /// <param name="chunk">The chunk to check</param>
+    /// <returns>True if the chunk is a heading</returns>
+    private static bool IsHeadingChunk(ChunkNode chunk)
+    {
+        return chunk.ChunkType?.Contains("Heading") == true ||
+               chunk.ChunkType?.Contains("Header") == true ||
+               !string.IsNullOrEmpty(chunk.RawTitle);
+    }
+
+    /// <summary>
+    /// Builds parent-child relationships between chunks based on their hierarchical structure.
+    /// </summary>
+    /// <param name="chunks">The chunks to process</param>
+    /// <returns>Chunks with populated Parent and Children properties</returns>
+    private static List<ChunkNode> BuildParentChildRelationships(List<ChunkNode> chunks)
+    {
+        if (!chunks.Any())
+            return chunks;
+
+        // Create the final result list that will maintain consistent object references
+        var result = new List<ChunkNode>();
+        var chunkMap = new Dictionary<Guid, ChunkNode>();
+
+        // First pass: Create all chunks with parent references but empty children
+        foreach (var chunk in chunks)
+        {
+            // Find parent
+            ChunkNode? parent = null;
+            if (chunk.ParentId.HasValue)
+            {
+                parent = chunks.FirstOrDefault(c => c.Id == chunk.ParentId.Value);
+            }
+
+            // Create chunk with parent reference
+            var chunkWithParent = chunk with
+            {
+                Parent = parent,
+                Children = new List<ChunkNode>().AsReadOnly() // Empty for now
+            };
+
+            result.Add(chunkWithParent);
+            chunkMap[chunkWithParent.Id] = chunkWithParent;
+        }
+
+        // Second pass: Update children collections to reference the final chunks
+        for (int i = 0; i < result.Count; i++)
+        {
+            var chunk = result[i];
+            
+            // Find all children from the final result list
+            var children = result.Where(c => c.ParentId == chunk.Id).ToList();
+            
+            // Update the chunk with the correct children references
+            var updatedChunk = chunk with
+            {
+                Children = children.AsReadOnly()
+            };
+
+            result[i] = updatedChunk;
+            chunkMap[updatedChunk.Id] = updatedChunk;
+        }
+
+        // Third pass: Update parent references to point to the final chunks
+        for (int i = 0; i < result.Count; i++)
+        {
+            var chunk = result[i];
+            
+            if (chunk.ParentId.HasValue && chunkMap.TryGetValue(chunk.ParentId.Value, out var finalParent))
+            {
+                var updatedChunk = chunk with
+                {
+                    Parent = finalParent
+                };
+
+                result[i] = updatedChunk;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates default chunking rules for common document patterns.
+    /// </summary>
+    /// <returns>A collection of default chunking rules</returns>
+    public static IEnumerable<ChunkingRule> CreateDefaultRules()
+    {
+        return new[]
         {
             // Markdown headings (highest priority)
             new ChunkingRule("MarkdownH1", @"^#\s+(.*)", level: 1, priority: 1),
