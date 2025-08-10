@@ -122,7 +122,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                             EndOffset = contentEndOffset,
                             OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
                                 ? ExtractOriginalMarkdown(text, currentChunk.StartOffset, contentEndOffset)
-                                : null
+                                : string.Empty
                         };
                         
                         // Update the chunk in the results if it exists
@@ -185,7 +185,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                     EndOffset = contentEndOffset,
                     OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
                         ? ExtractOriginalMarkdown(text, currentChunk.StartOffset, contentEndOffset)
-                        : null
+                        : string.Empty
                 };
                 
                 // Update the chunk in the results if it exists
@@ -244,7 +244,7 @@ public class PatternBasedStrategy : IChunkingStrategy
         {
             Id = Guid.NewGuid(),
             Level = match.Level,
-            ChunkType = match.Type,
+            ChunkType = match.Type ?? string.Empty,
             RawTitle = match.RawTitle,
             CleanTitle = match.CleanTitle,
             Content = string.Empty
@@ -281,20 +281,20 @@ public class PatternBasedStrategy : IChunkingStrategy
         {
             Id = Guid.NewGuid(),
             Level = match.Level,
-            ChunkType = match.Type,
-            RawTitle = match.RawTitle,
-            CleanTitle = match.CleanTitle,
+            ChunkType = match.Type ?? string.Empty,
+            RawTitle = match.RawTitle ?? string.Empty,
+            CleanTitle = match.CleanTitle ?? string.Empty,
             Content = string.Empty,
             StartOffset = startOffset,
             EndOffset = startOffset, // Will be updated when content is added
             HeadingHierarchy = new List<string>(headingHierarchy),
             SectionLevel = match.Level,
             IsHeading = isHeading,
-            ParentHeading = parentHeading,
+            ParentHeading = parentHeading ?? string.Empty,
             ChunkTypeEnum = chunkTypeEnum,
             OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
                 ? ExtractOriginalMarkdown(originalText, startOffset, startOffset + match.RawTitle?.Length ?? 0)
-                : null
+                : string.Empty
         };
     }
 
