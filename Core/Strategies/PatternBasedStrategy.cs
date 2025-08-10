@@ -144,7 +144,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                 UpdateHeadingHierarchy(headingHierarchy, match);
                 
                 // Create the chunk with the updated hierarchy
-                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, currentOffset, text, headingHierarchy);
+                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy);
                 
                 // Manage the context stack based on hierarchical levels FIRST
                 AdjustContextStack(contextStack, newChunk.Level);
