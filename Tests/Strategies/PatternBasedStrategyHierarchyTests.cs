@@ -99,9 +99,12 @@ Content B.";
         
         // Check Parent property references
         Assert.Null(mainTitle.Parent);
-        Assert.Equal(mainTitle, subtitleA.Parent);
-        Assert.Equal(subtitleA, subSubtitleA1.Parent);
-        Assert.Equal(mainTitle, subtitleB.Parent);
+        Assert.NotNull(subtitleA.Parent);
+        Assert.Equal(mainTitle.Id, subtitleA.Parent.Id);
+        Assert.NotNull(subSubtitleA1.Parent);
+        Assert.Equal(subtitleA.Id, subSubtitleA1.Parent.Id);
+        Assert.NotNull(subtitleB.Parent);
+        Assert.Equal(mainTitle.Id, subtitleB.Parent.Id);
     }
 
     [Fact]

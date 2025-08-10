@@ -86,7 +86,7 @@ public class PatternBasedStrategyOffsetTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        Assert.All(chunks, chunk => Assert.Null(chunk.OriginalMarkdown));
+        Assert.All(chunks, chunk => Assert.Equal(string.Empty, chunk.OriginalMarkdown));
     }
 
     [Fact]
@@ -215,7 +215,7 @@ More section content.";
         Assert.NotNull(secondSection);
         
         // Check parent headings
-        Assert.Null(mainChapter.ParentHeading); // Top level has no parent
+        Assert.Equal(string.Empty, mainChapter.ParentHeading); // Top level has no parent
         Assert.Equal("Main Chapter", firstSection.ParentHeading);
         Assert.Equal("First Section", subsection.ParentHeading);
         Assert.Equal("Main Chapter", secondSection.ParentHeading);

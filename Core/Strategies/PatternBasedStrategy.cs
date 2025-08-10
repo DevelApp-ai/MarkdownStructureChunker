@@ -139,19 +139,19 @@ public class PatternBasedStrategy : IChunkingStrategy
                     
                     currentContent.Clear();
                 }
-
-                // Create new chunk from the match with offset information
-                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy);
                 
-                // Update heading hierarchy
-                UpdateHeadingHierarchy(headingHierarchy, newChunk);
+                // Update heading hierarchy BEFORE creating the chunk
+                UpdateHeadingHierarchy(headingHierarchy, match);
+                
+                // Create the chunk with the updated hierarchy
+                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, currentOffset, text, headingHierarchy);
+                
+                // Set parent relationship BEFORE adjusting context stack
+                var parent = contextStack.Count > 0 ? contextStack.Peek() : null;
+                var chunkWithParent = newChunk with { ParentId = parent?.Id };
                 
                 // Manage the context stack based on hierarchical levels
                 AdjustContextStack(contextStack, newChunk.Level);
-                
-                // Set parent relationship
-                var parent = contextStack.Count > 0 ? contextStack.Peek() : null;
-                var chunkWithParent = newChunk with { ParentId = parent?.Id };
                 
                 // Add to results and push to stack
                 chunks.Add(chunkWithParent);
@@ -299,23 +299,24 @@ public class PatternBasedStrategy : IChunkingStrategy
     }
 
     /// <summary>
-    /// Updates the heading hierarchy based on the new chunk.
+    /// Updates the heading hierarchy based on the new match.
     /// </summary>
     /// <param name="headingHierarchy">The current heading hierarchy to update</param>
-    /// <param name="newChunk">The new chunk being added</param>
-    private static void UpdateHeadingHierarchy(List<string> headingHierarchy, ChunkNode newChunk)
+    /// <param name="match">The new match being added</param>
+    private static void UpdateHeadingHierarchy(List<string> headingHierarchy, ChunkingMatch match)
     {
-        if (!newChunk.IsHeading || string.IsNullOrEmpty(newChunk.CleanTitle))
+        // Only update hierarchy for headings
+        if (string.IsNullOrEmpty(match.CleanTitle) || !match.Type?.Contains("H") == true)
             return;
 
         // Adjust hierarchy based on level - remove deeper levels
-        while (headingHierarchy.Count >= newChunk.Level)
+        while (headingHierarchy.Count >= match.Level)
         {
             headingHierarchy.RemoveAt(headingHierarchy.Count - 1);
         }
 
         // Add the new heading at the correct level
-        headingHierarchy.Add(newChunk.CleanTitle);
+        headingHierarchy.Add(match.CleanTitle);
     }
 
     /// <summary>
@@ -620,31 +621,27 @@ public class PatternBasedStrategy : IChunkingStrategy
             return chunks;
 
         var chunkMap = new Dictionary<Guid, ChunkNode>();
-        var childrenMap = new Dictionary<Guid, List<ChunkNode>>();
         var updatedChunks = new List<ChunkNode>();
 
-        // First pass: Create a map of all chunks and initialize children collections
+        // First pass: Create a map of all chunks
         foreach (var chunk in chunks)
         {
             chunkMap[chunk.Id] = chunk;
-            childrenMap[chunk.Id] = new List<ChunkNode>();
         }
 
-        // Second pass: Build parent-child relationships
+        // Second pass: Build relationships
         foreach (var chunk in chunks)
         {
             ChunkNode? parentChunk = null;
-            List<ChunkNode> children = new List<ChunkNode>();
-
+            
             // Find parent based on ParentId
             if (chunk.ParentId.HasValue && chunkMap.TryGetValue(chunk.ParentId.Value, out var parent))
             {
                 parentChunk = parent;
-                childrenMap[chunk.ParentId.Value].Add(chunk);
             }
 
-            // Find children based on ParentId references
-            children = chunks.Where(c => c.ParentId == chunk.Id).ToList();
+            // Find all children of this chunk
+            var children = chunks.Where(c => c.ParentId == chunk.Id).ToList();
 
             // Create updated chunk with parent and children references
             var updatedChunk = chunk with
@@ -656,15 +653,26 @@ public class PatternBasedStrategy : IChunkingStrategy
             updatedChunks.Add(updatedChunk);
         }
 
-        // Third pass: Update all chunks with their final children collections
+        // Third pass: Update parent references to point to the updated chunks
         var finalChunks = new List<ChunkNode>();
+        var finalChunkMap = updatedChunks.ToDictionary(c => c.Id, c => c);
+        
         foreach (var chunk in updatedChunks)
         {
+            ChunkNode? finalParent = null;
+            if (chunk.ParentId.HasValue && finalChunkMap.TryGetValue(chunk.ParentId.Value, out var parent))
+            {
+                finalParent = parent;
+            }
+            
             var finalChildren = updatedChunks.Where(c => c.ParentId == chunk.Id).ToList();
+            
             var finalChunk = chunk with
             {
+                Parent = finalParent,
                 Children = finalChildren.AsReadOnly()
             };
+            
             finalChunks.Add(finalChunk);
         }
 
