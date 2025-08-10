@@ -143,8 +143,9 @@ public class PatternBasedStrategy : IChunkingStrategy
                 // Update heading hierarchy BEFORE creating the chunk
                 UpdateHeadingHierarchy(headingHierarchy, match);
                 
-                // Get parent heading by simulating what the context stack will look like after adjustment
+                // Get parent heading and parent ID by finding the appropriate parent
                 var parentHeading = string.Empty;
+                Guid? parentId = null;
                 if (contextStack.Count > 0)
                 {
                     // Find the appropriate parent by looking for a chunk with level < match.Level
@@ -154,20 +155,18 @@ public class PatternBasedStrategy : IChunkingStrategy
                         if (item.Level < match.Level && item.ChunkType != "Root")
                         {
                             parentHeading = item.CleanTitle ?? string.Empty;
+                            parentId = item.Id;
                             break;
                         }
                     }
                 }
                 
-                // Create the chunk with the updated hierarchy
+                // Create the chunk with the updated hierarchy and correct parent
                 var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy, parentHeading);
+                var chunkWithParent = newChunk with { ParentId = parentId };
                 
-                // Manage the context stack based on hierarchical levels FIRST
+                // Manage the context stack based on hierarchical levels AFTER setting parent
                 AdjustContextStack(contextStack, newChunk.Level);
-                
-                // Set parent relationship AFTER adjusting context stack
-                var parent = contextStack.Count > 0 ? contextStack.Peek() : null;
-                var chunkWithParent = newChunk with { ParentId = parent?.Id };
                 
                 // Add to results and push to stack
                 chunks.Add(chunkWithParent);
@@ -632,47 +631,66 @@ public class PatternBasedStrategy : IChunkingStrategy
         if (!chunks.Any())
             return chunks;
 
-        // First pass: Create updated chunks with children but no parent references yet
-        var updatedChunks = new List<ChunkNode>();
+        // Create the final result list that will maintain consistent object references
+        var result = new List<ChunkNode>();
+        var chunkMap = new Dictionary<Guid, ChunkNode>();
+
+        // First pass: Create all chunks with parent references but empty children
         foreach (var chunk in chunks)
         {
-            // Find all children of this chunk
-            var children = chunks.Where(c => c.ParentId == chunk.Id).ToList();
+            // Find parent
+            ChunkNode? parent = null;
+            if (chunk.ParentId.HasValue)
+            {
+                parent = chunks.FirstOrDefault(c => c.Id == chunk.ParentId.Value);
+            }
 
-            // Create updated chunk with children but no parent yet
+            // Create chunk with parent reference
+            var chunkWithParent = chunk with
+            {
+                Parent = parent,
+                Children = new List<ChunkNode>().AsReadOnly() // Empty for now
+            };
+
+            result.Add(chunkWithParent);
+            chunkMap[chunkWithParent.Id] = chunkWithParent;
+        }
+
+        // Second pass: Update children collections to reference the final chunks
+        for (int i = 0; i < result.Count; i++)
+        {
+            var chunk = result[i];
+            
+            // Find all children from the final result list
+            var children = result.Where(c => c.ParentId == chunk.Id).ToList();
+            
+            // Update the chunk with the correct children references
             var updatedChunk = chunk with
             {
                 Children = children.AsReadOnly()
             };
 
-            updatedChunks.Add(updatedChunk);
+            result[i] = updatedChunk;
+            chunkMap[updatedChunk.Id] = updatedChunk;
         }
 
-        // Create a map of updated chunks for parent lookup
-        var updatedChunkMap = updatedChunks.ToDictionary(c => c.Id, c => c);
-
-        // Second pass: Set parent references to point to updated chunks
-        var finalChunks = new List<ChunkNode>();
-        foreach (var chunk in updatedChunks)
+        // Third pass: Update parent references to point to the final chunks
+        for (int i = 0; i < result.Count; i++)
         {
-            ChunkNode? parentChunk = null;
+            var chunk = result[i];
             
-            // Find parent based on ParentId - use the UPDATED chunk from the map
-            if (chunk.ParentId.HasValue && updatedChunkMap.TryGetValue(chunk.ParentId.Value, out var updatedParent))
+            if (chunk.ParentId.HasValue && chunkMap.TryGetValue(chunk.ParentId.Value, out var finalParent))
             {
-                parentChunk = updatedParent;
+                var updatedChunk = chunk with
+                {
+                    Parent = finalParent
+                };
+
+                result[i] = updatedChunk;
             }
-
-            // Create final chunk with correct parent reference
-            var finalChunk = chunk with
-            {
-                Parent = parentChunk
-            };
-
-            finalChunks.Add(finalChunk);
         }
 
-        return finalChunks;
+        return result;
     }
 
     /// <summary>

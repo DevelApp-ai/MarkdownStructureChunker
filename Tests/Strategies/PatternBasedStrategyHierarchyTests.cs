@@ -59,9 +59,9 @@ Second chapter content.";
         Assert.Empty(chapter2.Children); // No children
         
         // Verify specific child relationships
-        Assert.Contains(section11, chapter1.Children);
-        Assert.Contains(section12, chapter1.Children);
-        Assert.Contains(subsection111, section11.Children);
+        Assert.Contains(chapter1.Children, child => child.Id == section11.Id);
+        Assert.Contains(chapter1.Children, child => child.Id == section12.Id);
+        Assert.Contains(section11.Children, child => child.Id == subsection111.Id);
     }
 
     [Fact]
@@ -158,25 +158,25 @@ Chapter 2 introduction.";
         
         // Test navigation from book level
         Assert.Equal(2, book.Children.Count); // Chapter 1 and Chapter 2
-        Assert.Contains(chapter1, book.Children);
-        Assert.Contains(chapter2, book.Children);
+        Assert.Contains(book.Children, child => child.Id == chapter1.Id);
+        Assert.Contains(book.Children, child => child.Id == chapter2.Id);
         
         // Test navigation from chapter level
         Assert.Equal(3, chapter1.Children.Count); // Prerequisites, Installation, Configuration
-        Assert.Contains(prerequisites, chapter1.Children);
-        Assert.Contains(installation, chapter1.Children);
-        Assert.Contains(configuration, chapter1.Children);
+        Assert.Contains(chapter1.Children, child => child.Id == prerequisites.Id);
+        Assert.Contains(chapter1.Children, child => child.Id == installation.Id);
+        Assert.Contains(chapter1.Children, child => child.Id == configuration.Id);
         
         // Test navigation from section level
         Assert.Equal(2, installation.Children.Count); // Windows and Linux installation
-        Assert.Contains(windowsInstall, installation.Children);
-        Assert.Contains(linuxInstall, installation.Children);
+        Assert.Contains(installation.Children, child => child.Id == windowsInstall.Id);
+        Assert.Contains(installation.Children, child => child.Id == linuxInstall.Id);
         
         // Test upward navigation
-        Assert.Equal(book, chapter1.Parent);
-        Assert.Equal(chapter1, installation.Parent);
-        Assert.Equal(installation, windowsInstall.Parent);
-        Assert.Equal(installation, linuxInstall.Parent);
+        Assert.Equal(book.Id, chapter1.Parent?.Id);
+        Assert.Equal(chapter1.Id, installation.Parent?.Id);
+        Assert.Equal(installation.Id, windowsInstall.Parent?.Id);
+        Assert.Equal(installation.Id, linuxInstall.Parent?.Id);
     }
 
     [Fact]
@@ -248,13 +248,13 @@ Content 2.";
         Assert.NotNull(level2);
         
         // Level 3 should be child of Level 1 (skipped level 2)
-        Assert.Equal(level1, level3.Parent);
-        Assert.Equal(level1, level2.Parent);
+        Assert.Equal(level1.Id, level3.Parent?.Id);
+        Assert.Equal(level1.Id, level2.Parent?.Id);
         
         // Level 1 should have both as children
         Assert.Equal(2, level1.Children.Count);
-        Assert.Contains(level3, level1.Children);
-        Assert.Contains(level2, level1.Children);
+        Assert.Contains(level1.Children, child => child.Id == level3.Id);
+        Assert.Contains(level1.Children, child => child.Id == level2.Id);
     }
 
     [Fact]
@@ -340,11 +340,11 @@ Content 6.";
         
         // Check the chain of parent-child relationships
         Assert.Null(level1.Parent);
-        Assert.Equal(level1, level2.Parent);
-        Assert.Equal(level2, level3.Parent);
-        Assert.Equal(level3, level4.Parent);
-        Assert.Equal(level4, level5.Parent);
-        Assert.Equal(level5, level6.Parent);
+        Assert.Equal(level1.Id, level2.Parent?.Id);
+        Assert.Equal(level2.Id, level3.Parent?.Id);
+        Assert.Equal(level3.Id, level4.Parent?.Id);
+        Assert.Equal(level4.Id, level5.Parent?.Id);
+        Assert.Equal(level5.Id, level6.Parent?.Id);
         
         // Check children counts
         Assert.Single(level1.Children);
@@ -355,11 +355,11 @@ Content 6.";
         Assert.Empty(level6.Children);
         
         // Verify the chain
-        Assert.Equal(level2, level1.Children.First());
-        Assert.Equal(level3, level2.Children.First());
-        Assert.Equal(level4, level3.Children.First());
-        Assert.Equal(level5, level4.Children.First());
-        Assert.Equal(level6, level5.Children.First());
+        Assert.Equal(level2.Id, level1.Children.First().Id);
+        Assert.Equal(level3.Id, level2.Children.First().Id);
+        Assert.Equal(level4.Id, level3.Children.First().Id);
+        Assert.Equal(level5.Id, level4.Children.First().Id);
+        Assert.Equal(level6.Id, level5.Children.First().Id);
     }
 
     [Fact]
@@ -412,20 +412,20 @@ The results section.";
         
         // Check structure
         Assert.Equal(3, introduction.Children.Count); // Background, Methodology, Results
-        Assert.Contains(background, introduction.Children);
-        Assert.Contains(methodology, introduction.Children);
-        Assert.Contains(results, introduction.Children);
+        Assert.Contains(introduction.Children, child => child.Id == background.Id);
+        Assert.Contains(introduction.Children, child => child.Id == methodology.Id);
+        Assert.Contains(introduction.Children, child => child.Id == results.Id);
         
         Assert.Equal(2, methodology.Children.Count); // Data Collection, Analysis
-        Assert.Contains(dataCollection, methodology.Children);
-        Assert.Contains(analysis, methodology.Children);
+        Assert.Contains(methodology.Children, child => child.Id == dataCollection.Id);
+        Assert.Contains(methodology.Children, child => child.Id == analysis.Id);
         
         // Check parents
-        Assert.Equal(introduction, background.Parent);
-        Assert.Equal(introduction, methodology.Parent);
-        Assert.Equal(methodology, dataCollection.Parent);
-        Assert.Equal(methodology, analysis.Parent);
-        Assert.Equal(introduction, results.Parent);
+        Assert.Equal(introduction.Id, background.Parent?.Id);
+        Assert.Equal(introduction.Id, methodology.Parent?.Id);
+        Assert.Equal(methodology.Id, dataCollection.Parent?.Id);
+        Assert.Equal(methodology.Id, analysis.Parent?.Id);
+        Assert.Equal(introduction.Id, results.Parent?.Id);
     }
 }
 
