@@ -206,6 +206,9 @@ public class PatternBasedStrategy : IChunkingStrategy
             documentChunks = ApplyConfigurationConstraints(documentChunks);
         }
 
+        // Build parent-child relationships
+        documentChunks = BuildParentChildRelationships(documentChunks);
+
         return documentChunks;
     }
 
@@ -604,6 +607,68 @@ public class PatternBasedStrategy : IChunkingStrategy
         return chunk.ChunkType?.Contains("Heading") == true ||
                chunk.ChunkType?.Contains("Header") == true ||
                !string.IsNullOrEmpty(chunk.RawTitle);
+    }
+
+    /// <summary>
+    /// Builds parent-child relationships between chunks based on their hierarchical structure.
+    /// </summary>
+    /// <param name="chunks">The chunks to process</param>
+    /// <returns>Chunks with populated Parent and Children properties</returns>
+    private static List<ChunkNode> BuildParentChildRelationships(List<ChunkNode> chunks)
+    {
+        if (!chunks.Any())
+            return chunks;
+
+        var chunkMap = new Dictionary<Guid, ChunkNode>();
+        var childrenMap = new Dictionary<Guid, List<ChunkNode>>();
+        var updatedChunks = new List<ChunkNode>();
+
+        // First pass: Create a map of all chunks and initialize children collections
+        foreach (var chunk in chunks)
+        {
+            chunkMap[chunk.Id] = chunk;
+            childrenMap[chunk.Id] = new List<ChunkNode>();
+        }
+
+        // Second pass: Build parent-child relationships
+        foreach (var chunk in chunks)
+        {
+            ChunkNode? parentChunk = null;
+            List<ChunkNode> children = new List<ChunkNode>();
+
+            // Find parent based on ParentId
+            if (chunk.ParentId.HasValue && chunkMap.TryGetValue(chunk.ParentId.Value, out var parent))
+            {
+                parentChunk = parent;
+                childrenMap[chunk.ParentId.Value].Add(chunk);
+            }
+
+            // Find children based on ParentId references
+            children = chunks.Where(c => c.ParentId == chunk.Id).ToList();
+
+            // Create updated chunk with parent and children references
+            var updatedChunk = chunk with
+            {
+                Parent = parentChunk,
+                Children = children.AsReadOnly()
+            };
+
+            updatedChunks.Add(updatedChunk);
+        }
+
+        // Third pass: Update all chunks with their final children collections
+        var finalChunks = new List<ChunkNode>();
+        foreach (var chunk in updatedChunks)
+        {
+            var finalChildren = updatedChunks.Where(c => c.ParentId == chunk.Id).ToList();
+            var finalChunk = chunk with
+            {
+                Children = finalChildren.AsReadOnly()
+            };
+            finalChunks.Add(finalChunk);
+        }
+
+        return finalChunks;
     }
 
     /// <summary>
