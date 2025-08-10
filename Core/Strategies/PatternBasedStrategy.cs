@@ -143,8 +143,24 @@ public class PatternBasedStrategy : IChunkingStrategy
                 // Update heading hierarchy BEFORE creating the chunk
                 UpdateHeadingHierarchy(headingHierarchy, match);
                 
+                // Get parent heading by simulating what the context stack will look like after adjustment
+                var parentHeading = string.Empty;
+                if (contextStack.Count > 0)
+                {
+                    // Find the appropriate parent by looking for a chunk with level < match.Level
+                    var stackItems = contextStack.ToArray(); // Get current stack as array (top to bottom)
+                    foreach (var item in stackItems)
+                    {
+                        if (item.Level < match.Level && item.ChunkType != "Root")
+                        {
+                            parentHeading = item.CleanTitle ?? string.Empty;
+                            break;
+                        }
+                    }
+                }
+                
                 // Create the chunk with the updated hierarchy
-                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy);
+                var newChunk = CreateChunkFromMatchWithOffsets(match, contextStack, lineOffsets[lineIndex], text, headingHierarchy, parentHeading);
                 
                 // Manage the context stack based on hierarchical levels FIRST
                 AdjustContextStack(contextStack, newChunk.Level);
@@ -260,19 +276,15 @@ public class PatternBasedStrategy : IChunkingStrategy
     /// <param name="startOffset">The character offset where this chunk starts</param>
     /// <param name="originalText">The original document text</param>
     /// <param name="headingHierarchy">The current heading hierarchy</param>
+    /// <param name="parentHeading">The title of the parent heading</param>
     /// <returns>A new chunk node with complete metadata</returns>
     private ChunkNode CreateChunkFromMatchWithOffsets(ChunkingMatch match, Stack<ChunkNode> contextStack, 
-        int startOffset, string originalText, List<string> headingHierarchy)
+        int startOffset, string originalText, List<string> headingHierarchy, string parentHeading)
     {
         // Determine if this is a heading chunk
         var isHeading = match.Type?.Contains("Heading") == true || 
                        match.Type?.Contains("Markdown") == true ||
                        !string.IsNullOrEmpty(match.RawTitle);
-
-        // Get parent heading for context
-        var parentHeading = contextStack.Count > 0 && contextStack.Peek().Level < match.Level && contextStack.Peek().ChunkType != "Root"
-            ? contextStack.Peek().CleanTitle 
-            : null;
 
         // Determine chunk type enum
         var chunkTypeEnum = DetermineChunkType(match, isHeading);
@@ -290,7 +302,7 @@ public class PatternBasedStrategy : IChunkingStrategy
             HeadingHierarchy = new List<string>(headingHierarchy),
             SectionLevel = match.Level,
             IsHeading = isHeading,
-            ParentHeading = parentHeading ?? string.Empty,
+            ParentHeading = parentHeading,
             ChunkTypeEnum = chunkTypeEnum,
             OriginalMarkdown = _configuration?.PreserveOriginalMarkdown == true 
                 ? ExtractOriginalMarkdown(originalText, startOffset, startOffset + match.RawTitle?.Length ?? 0)
