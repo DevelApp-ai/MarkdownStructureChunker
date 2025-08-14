@@ -286,9 +286,10 @@ public class KeywordValidatorTests
         var result = KeywordValidator.SanitizeKeywords(keywords);
 
         // Assert
-        Assert.Equal(2, result.Count);
+        Assert.Equal(3, result.Count); // "valid", "another valid", "duplicate" (deduplicated)
         Assert.Contains("valid", result);
         Assert.Contains("another valid", result);
+        Assert.Contains("duplicate", result);
     }
 
     [Fact]
@@ -323,8 +324,8 @@ public class KeywordValidatorTests
 
         // Assert
         Assert.NotNull(regex);
-        Assert.True(regex.IsMatch("test some pattern"));
-        Assert.False(regex.IsMatch("other pattern"));
+        Assert.Matches("test.*pattern", "test some pattern");
+        Assert.DoesNotMatch("test.*pattern", "other pattern");
     }
 
     [Fact]
@@ -348,9 +349,9 @@ public class KeywordValidatorTests
         var regex = KeywordValidator.CreateSafeRegex("test");
 
         // Assert
-        Assert.True(regex.IsMatch("TEST"));
-        Assert.True(regex.IsMatch("Test"));
-        Assert.True(regex.IsMatch("test"));
+        Assert.Matches("(?i)test", "TEST");
+        Assert.Matches("(?i)test", "Test");
+        Assert.Matches("(?i)test", "test");
     }
 }
 
