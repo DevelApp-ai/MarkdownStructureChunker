@@ -78,6 +78,42 @@ public class ChunkerConfiguration
     /// </summary>
     public bool PreserveOriginalMarkdown { get; set; } = false;
 
+    // CUSTOM KEYWORD SUPPORT
+
+    /// <summary>
+    /// Gets or sets custom keywords to add to all chunks.
+    /// These keywords will be combined with automatically extracted keywords.
+    /// Useful for adding domain-specific terms, project tags, or classification labels.
+    /// Default is an empty list.
+    /// </summary>
+    public IReadOnlyList<string> CustomKeywords { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Gets or sets document-specific keyword mappings based on heading patterns.
+    /// Key: Regular expression pattern to match against heading text.
+    /// Value: List of keywords to add to chunks under matching headings.
+    /// This enables targeted keyword assignment for specific document sections.
+    /// Default is an empty dictionary.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> SectionKeywordMappings { get; set; } 
+        = new Dictionary<string, IReadOnlyList<string>>();
+
+    /// <summary>
+    /// Gets or sets whether custom keywords should be prioritized over extracted keywords.
+    /// When true, custom keywords are added first and extracted keywords fill remaining slots.
+    /// When false, all keywords are mixed and sorted by relevance.
+    /// Default is true.
+    /// </summary>
+    public bool PrioritizeCustomKeywords { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to inherit custom keywords from parent chunks.
+    /// When true, child chunks will include keywords from their parent sections.
+    /// This enables hierarchical keyword propagation through the document structure.
+    /// Default is false.
+    /// </summary>
+    public bool InheritParentKeywords { get; set; } = false;
+
     /// <summary>
     /// Validates the configuration and throws an exception if invalid.
     /// </summary>
@@ -101,6 +137,30 @@ public class ChunkerConfiguration
 
         if (MaxKeywordsPerChunk <= 0)
             throw new ArgumentException("MaxKeywordsPerChunk must be greater than 0.", nameof(MaxKeywordsPerChunk));
+
+        // Validate custom keywords
+        if (CustomKeywords.Any(k => string.IsNullOrWhiteSpace(k)))
+            throw new ArgumentException("CustomKeywords cannot contain null or empty values.", nameof(CustomKeywords));
+
+        // Validate section keyword mappings
+        foreach (var mapping in SectionKeywordMappings)
+        {
+            if (string.IsNullOrWhiteSpace(mapping.Key))
+                throw new ArgumentException("SectionKeywordMappings cannot contain null or empty pattern keys.", nameof(SectionKeywordMappings));
+
+            if (mapping.Value.Any(k => string.IsNullOrWhiteSpace(k)))
+                throw new ArgumentException($"SectionKeywordMappings pattern '{mapping.Key}' contains null or empty keyword values.", nameof(SectionKeywordMappings));
+
+            // Validate regex pattern
+            try
+            {
+                _ = new System.Text.RegularExpressions.Regex(mapping.Key);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"SectionKeywordMappings contains invalid regex pattern '{mapping.Key}': {ex.Message}", nameof(SectionKeywordMappings));
+            }
+        }
     }
 
     /// <summary>
@@ -164,6 +224,50 @@ public class ChunkerConfiguration
             ExtractKeywords = false,
             CalculateOffsets = false,
             PreserveOriginalMarkdown = false
+        };
+    }
+
+    /// <summary>
+    /// Creates a configuration with custom keywords for document tagging and cross-referencing.
+    /// </summary>
+    /// <param name="customKeywords">Global keywords to add to all chunks</param>
+    /// <param name="sectionMappings">Section-specific keyword mappings (optional)</param>
+    /// <param name="inheritParentKeywords">Whether to inherit keywords from parent chunks</param>
+    /// <returns>A new ChunkerConfiguration with custom keyword support enabled.</returns>
+    public static ChunkerConfiguration CreateWithCustomKeywords(
+        IReadOnlyList<string> customKeywords,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? sectionMappings = null,
+        bool inheritParentKeywords = false)
+    {
+        return new ChunkerConfiguration
+        {
+            CustomKeywords = customKeywords ?? throw new ArgumentNullException(nameof(customKeywords)),
+            SectionKeywordMappings = sectionMappings ?? new Dictionary<string, IReadOnlyList<string>>(),
+            InheritParentKeywords = inheritParentKeywords,
+            PrioritizeCustomKeywords = true,
+            ExtractKeywords = true,
+            MaxKeywordsPerChunk = Math.Max(10, customKeywords.Count + 5) // Ensure room for both custom and extracted
+        };
+    }
+
+    /// <summary>
+    /// Creates a configuration optimized for document cross-referencing and mapping.
+    /// Enables all features needed for linking related content across documents.
+    /// </summary>
+    /// <param name="projectKeywords">Project-specific keywords for cross-document mapping</param>
+    /// <returns>A new ChunkerConfiguration optimized for document mapping.</returns>
+    public static ChunkerConfiguration CreateForDocumentMapping(IReadOnlyList<string> projectKeywords)
+    {
+        return new ChunkerConfiguration
+        {
+            CustomKeywords = projectKeywords ?? throw new ArgumentNullException(nameof(projectKeywords)),
+            InheritParentKeywords = true,
+            PrioritizeCustomKeywords = true,
+            ExtractKeywords = true,
+            MaxKeywordsPerChunk = 15,
+            IncludeHeadingHierarchy = true,
+            PreserveStructure = true,
+            CalculateOffsets = true
         };
     }
 }

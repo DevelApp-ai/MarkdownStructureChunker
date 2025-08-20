@@ -113,7 +113,7 @@ public class StructureChunker : IDisposable
         // Step 1: Parse and chunk the document
         var chunks = _chunkingStrategy.ProcessText(documentText, sourceId);
 
-        // Step 2: Extract keywords for each chunk (if enabled)
+        // Step 2: Extract and merge keywords for each chunk (if enabled)
         var enrichedChunks = new List<ChunkNode>();
         foreach (var chunk in chunks)
         {
@@ -122,8 +122,8 @@ public class StructureChunker : IDisposable
             var keywords = new List<string>();
             if (_configuration?.ExtractKeywords != false) // Extract keywords unless explicitly disabled
             {
-                var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(chunk.Content);
-                keywords = extractedKeywords.ToList();
+                // Combine custom and extracted keywords
+                keywords = await CombineKeywordsAsync(chunk, cancellationToken);
                 
                 // Respect MaxKeywordsPerChunk if configuration is available
                 if (_configuration != null && keywords.Count > _configuration.MaxKeywordsPerChunk)
@@ -178,6 +178,86 @@ public class StructureChunker : IDisposable
     /// Returns null if the chunker was created with the legacy constructor.
     /// </summary>
     public ChunkerConfiguration? Configuration => _configuration;
+
+    /// <summary>
+    /// Combines custom keywords with automatically extracted keywords for a chunk.
+    /// Handles prioritization, section-specific mappings, and parent keyword inheritance.
+    /// </summary>
+    /// <param name="chunk">The chunk to process keywords for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>A combined list of keywords</returns>
+    private async Task<List<string>> CombineKeywordsAsync(ChunkNode chunk, CancellationToken cancellationToken)
+    {
+        var allKeywords = new List<string>();
+
+        // 1. Add global custom keywords
+        if (_configuration?.CustomKeywords != null)
+        {
+            allKeywords.AddRange(_configuration.CustomKeywords);
+        }
+
+        // 2. Add section-specific keywords based on heading patterns
+        if (_configuration?.SectionKeywordMappings != null && !string.IsNullOrEmpty(chunk.CleanTitle))
+        {
+            foreach (var mapping in _configuration.SectionKeywordMappings)
+            {
+                try
+                {
+                    var regex = new System.Text.RegularExpressions.Regex(mapping.Key, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (regex.IsMatch(chunk.CleanTitle))
+                    {
+                        allKeywords.AddRange(mapping.Value);
+                    }
+                }
+                catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+                {
+                    // Skip this pattern if it times out
+                    continue;
+                }
+            }
+        }
+
+        // 3. Add inherited keywords from parent chunks
+        if (_configuration?.InheritParentKeywords == true && chunk.Parent != null)
+        {
+            allKeywords.AddRange(chunk.Parent.Keywords);
+        }
+
+        // 4. Extract keywords from content
+        var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(chunk.Content);
+
+        // 5. Combine and prioritize keywords
+        List<string> finalKeywords;
+        if (_configuration?.PrioritizeCustomKeywords == true)
+        {
+            // Custom keywords first, then extracted keywords to fill remaining slots
+            finalKeywords = allKeywords.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var remainingSlots = (_configuration?.MaxKeywordsPerChunk ?? 10) - finalKeywords.Count;
+            if (remainingSlots > 0)
+            {
+                var additionalKeywords = extractedKeywords
+                    .Where(k => !finalKeywords.Contains(k, StringComparer.OrdinalIgnoreCase))
+                    .Take(remainingSlots);
+                finalKeywords.AddRange(additionalKeywords);
+            }
+        }
+        else
+        {
+            // Mix all keywords and sort by relevance (frequency for extracted, order for custom)
+            var customKeywordSet = new HashSet<string>(allKeywords, StringComparer.OrdinalIgnoreCase);
+            var mixedKeywords = new List<string>();
+            
+            // Add custom keywords first (they're considered high priority)
+            mixedKeywords.AddRange(allKeywords.Distinct(StringComparer.OrdinalIgnoreCase));
+            
+            // Add extracted keywords that aren't already included
+            mixedKeywords.AddRange(extractedKeywords.Where(k => !customKeywordSet.Contains(k)));
+            
+            finalKeywords = mixedKeywords.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        return finalKeywords;
+    }
 
     /// <summary>
     /// Releases all resources used by the <see cref="StructureChunker"/>.
