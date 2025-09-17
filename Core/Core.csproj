@@ -55,6 +55,7 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
     <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.2" />
     <PackageReference Include="System.Numerics.Tensors" Version="9.0.7" />
+    <PackageReference Include="Markdig" Version="0.38.0" />
     
     <!-- SourceLink for Source Code Transparency -->
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />

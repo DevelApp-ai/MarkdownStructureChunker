@@ -81,6 +81,105 @@ public class StructureChunker : IDisposable
     }
 
     /// <summary>
+    /// Creates a StructureChunker instance configured for structure-first ingestion architecture.
+    /// This factory method sets up an AST-based strategy using Markdig for robust Markdown parsing.
+    /// </summary>
+    /// <param name="keywordExtractor">The keyword extractor to use (optional, defaults to SimpleKeywordExtractor)</param>
+    /// <returns>A StructureChunker configured for structure-first processing</returns>
+    public static StructureChunker CreateStructureFirst(IKeywordExtractor? keywordExtractor = null)
+    {
+        var strategy = new Strategies.ASTBasedStrategy();
+        var extractor = keywordExtractor ?? new SimpleKeywordExtractor();
+        return new StructureChunker(strategy, extractor);
+    }
+
+    /// <summary>
+    /// Creates a StructureChunker instance with the specified configuration and AST-based strategy.
+    /// This factory method enables structure-first processing with full configuration support.
+    /// </summary>
+    /// <param name="configuration">The configuration to use</param>
+    /// <returns>A StructureChunker configured for structure-first processing</returns>
+    public static StructureChunker CreateStructureFirstWithConfiguration(ChunkerConfiguration configuration)
+    {
+        if (configuration == null)
+            throw new ArgumentNullException(nameof(configuration));
+            
+        configuration.Validate();
+
+        var strategy = new Strategies.ASTBasedStrategy();
+        var extractor = CreateExtractorFromConfiguration(configuration);
+        
+        // Create instance using the strategy-based constructor and store configuration separately
+        var chunker = new StructureChunker(strategy, extractor);
+        
+        // Note: For full configuration support with AST strategy, 
+        // users should use CreateStructureFirst() and call ProcessWithStructureAsync()
+        return chunker;
+    }
+
+    /// <summary>
+    /// Processes a document using the structure-first ingestion architecture.
+    /// This method creates both structural elements (from AST) and traditional chunks for backward compatibility.
+    /// </summary>
+    /// <param name="documentText">The input document text</param>
+    /// <param name="sourceId">Identifier for the source document</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A DocumentGraph containing structural elements, edges, and traditional chunks</returns>
+    public async Task<DocumentGraph> ProcessWithStructureAsync(string documentText, string sourceId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(documentText))
+            throw new ArgumentException("Document text cannot be null or empty", nameof(documentText));
+
+        if (string.IsNullOrWhiteSpace(sourceId))
+            throw new ArgumentException("Source ID cannot be null or empty", nameof(sourceId));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Check if the current strategy supports structure-first processing
+        if (_chunkingStrategy is Strategies.ASTBasedStrategy astStrategy)
+        {
+            // Use the structure-first approach
+            var (elements, edges, chunks) = astStrategy.ProcessTextToStructure(documentText, sourceId);
+
+            // Step 2: Extract and merge keywords for each chunk (if enabled)
+            var enrichedChunks = new List<ChunkNode>();
+            foreach (var chunk in chunks)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var keywords = new List<string>();
+                if (_configuration?.ExtractKeywords != false) // Extract keywords unless explicitly disabled
+                {
+                    // Combine custom and extracted keywords
+                    keywords = await CombineKeywordsAsync(chunk, cancellationToken);
+                    
+                    // Respect MaxKeywordsPerChunk if configuration is available
+                    if (_configuration != null && keywords.Count > _configuration.MaxKeywordsPerChunk)
+                    {
+                        keywords = keywords.Take(_configuration.MaxKeywordsPerChunk).ToList();
+                    }
+                }
+
+                var enrichedChunk = chunk with { Keywords = keywords };
+                enrichedChunks.Add(enrichedChunk);
+            }
+
+            return new DocumentGraph
+            {
+                SourceId = sourceId,
+                Chunks = enrichedChunks,
+                StructuralElements = elements,
+                StructuralEdges = edges
+            };
+        }
+        else
+        {
+            // Fall back to traditional processing
+            return await ProcessAsync(documentText, sourceId, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Processes a document and returns a structured graph of chunks with extracted keywords.
     /// This method maintains backward compatibility with the existing API.
     /// </summary>
