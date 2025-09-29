@@ -23,7 +23,7 @@ public record GraphEdge
     
     /// <summary>
     /// Gets or sets the type of relationship between the elements.
-    /// Common types: 'HAS_SUBSECTION', 'CONTAINS', 'FOLLOWS', 'PRECEDES'
+    /// Common types: 'HAS_SUBSECTION', 'CONTAINS', 'FOLLOWS', 'PRECEDES', 'LINKS_TO'
     /// </summary>
     public string RelationshipType { get; init; } = string.Empty;
     
@@ -34,6 +34,7 @@ public record GraphEdge
     
     /// <summary>
     /// Gets or sets additional metadata for this relationship.
+    /// For links, this might include the URL, link text, etc.
     /// </summary>
     public IReadOnlyDictionary<string, object> Metadata { get; init; } = new Dictionary<string, object>();
     
@@ -49,7 +50,8 @@ public record GraphEdge
 public static class RelationshipTypes
 {
     /// <summary>
-    /// Indicates a parent-child hierarchical relationship (e.g., h1 -> h2).
+    /// Indicates a direct parent-child hierarchical relationship (e.g., h1 -> h2).
+    /// Only used when the heading levels are sequential (h1->h2, h2->h3, etc.)
     /// </summary>
     public const string HAS_SUBSECTION = "HAS_SUBSECTION";
     
@@ -77,4 +79,16 @@ public static class RelationshipTypes
     /// Indicates parent relationship (inverse of HAS_SUBSECTION).
     /// </summary>
     public const string PARENT_OF = "PARENT_OF";
+    
+    /// <summary>
+    /// Indicates a document link relationship (e.g., element links to another document).
+    /// Metadata should contain link details like URL, link text, etc.
+    /// </summary>
+    public const string LINKS_TO = "LINKS_TO";
+    
+    /// <summary>
+    /// Indicates a non-sequential hierarchical relationship (e.g., h1 -> h3 without h2).
+    /// Used when heading levels skip intermediate levels.
+    /// </summary>
+    public const string HAS_NESTED_SECTION = "HAS_NESTED_SECTION";
 }

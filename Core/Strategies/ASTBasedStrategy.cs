@@ -142,7 +142,7 @@ public class ASTBasedStrategy : IChunkingStrategy
             return;
         }
 
-        // For container blocks, process all children and establish hierarchical relationships
+        // For container blocks, process all children and establish more precise hierarchical relationships
         StructuralElement? currentHeading = null;
         var headingStack = new Stack<StructuralElement>();
         if (parent?.ElementType == "heading")
@@ -159,7 +159,7 @@ public class ASTBasedStrategy : IChunkingStrategy
 
             if (element.ElementType == "heading")
             {
-                // Find the appropriate parent heading based on level
+                // More precise hierarchical relationship detection
                 StructuralElement? parentHeading = null;
                 
                 // Pop headings from stack until we find one with lower level (higher importance)
@@ -171,16 +171,14 @@ public class ASTBasedStrategy : IChunkingStrategy
                 if (headingStack.Count > 0)
                 {
                     parentHeading = headingStack.Peek();
-                }
-
-                // Create relationship with parent heading
-                if (parentHeading != null)
-                {
+                    
+                    // Determine the appropriate relationship type based on level difference
+                    var relationshipType = DetermineHeadingRelationshipType(parentHeading, element);
                     edges.Add(new GraphEdge
                     {
                         SourceElementId = parentHeading.Id,
                         TargetElementId = element.Id,
-                        RelationshipType = RelationshipTypes.HAS_SUBSECTION
+                        RelationshipType = relationshipType
                     });
                 }
 
@@ -211,6 +209,74 @@ public class ASTBasedStrategy : IChunkingStrategy
                         RelationshipType = relationshipType
                     });
                 }
+                
+                // Extract and create link relationships if this element contains links
+                CreateLinkRelationships(element, elements, edges);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines the relationship type between two headings based on their levels.
+    /// </summary>
+    private string DetermineHeadingRelationshipType(StructuralElement parent, StructuralElement child)
+    {
+        var levelDifference = child.Level - parent.Level;
+        
+        if (levelDifference == 1)
+        {
+            // Sequential levels (h1->h2, h2->h3) - direct subsection
+            return RelationshipTypes.HAS_SUBSECTION;
+        }
+        else if (levelDifference > 1)
+        {
+            // Non-sequential levels (h1->h3, h2->h4) - nested section
+            return RelationshipTypes.HAS_NESTED_SECTION;
+        }
+        else
+        {
+            // This shouldn't happen due to stack logic, but fallback to sibling
+            return RelationshipTypes.SIBLING;
+        }
+    }
+
+    /// <summary>
+    /// Creates link relationships for elements that contain document links.
+    /// </summary>
+    private void CreateLinkRelationships(StructuralElement element, List<StructuralElement> elements, List<GraphEdge> edges)
+    {
+        if (element.Links.Any())
+        {
+            foreach (var link in element.Links.Where(l => l.Type == LinkType.Internal))
+            {
+                // Create a virtual link element for internal document links
+                var linkElement = new StructuralElement
+                {
+                    ElementType = "link",
+                    Content = link.Text,
+                    SourceId = element.SourceId,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["LinkUrl"] = link.Url,
+                        ["LinkType"] = link.Type.ToString(),
+                        ["LinkTitle"] = link.Title ?? ""
+                    }
+                };
+                
+                elements.Add(linkElement);
+                
+                edges.Add(new GraphEdge
+                {
+                    SourceElementId = element.Id,
+                    TargetElementId = linkElement.Id,
+                    RelationshipType = RelationshipTypes.LINKS_TO,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["LinkUrl"] = link.Url,
+                        ["LinkText"] = link.Text,
+                        ["LinkType"] = link.Type.ToString()
+                    }
+                });
             }
         }
     }
@@ -247,6 +313,7 @@ public class ASTBasedStrategy : IChunkingStrategy
         var content = ExtractTextContent(block);
         var originalMarkdown = ExtractOriginalMarkdown(originalText, block.Span.Start, block.Span.End);
         var level = block is HeadingBlock heading ? heading.Level : 0;
+        var links = ExtractLinksFromBlock(block);
 
         return new StructuralElement
         {
@@ -259,12 +326,101 @@ public class ASTBasedStrategy : IChunkingStrategy
             EndLine = block.Line, // Markdig doesn't provide end line directly
             OriginalMarkdown = originalMarkdown,
             SourceId = sourceId,
+            Links = links,
             Metadata = new Dictionary<string, object>
             {
                 ["BlockType"] = block.GetType().Name,
-                ["HasChildren"] = block is ContainerBlock container && container.Any()
+                ["HasChildren"] = block is ContainerBlock container && container.Any(),
+                ["LinkCount"] = links.Count
             }
         };
+    }
+
+    /// <summary>
+    /// Extracts document links from a Markdig block.
+    /// </summary>
+    private List<DocumentLink> ExtractLinksFromBlock(Block block)
+    {
+        var links = new List<DocumentLink>();
+        
+        switch (block)
+        {
+            case HeadingBlock heading:
+                links.AddRange(ExtractLinksFromInline(heading.Inline));
+                break;
+
+            case ParagraphBlock paragraph:
+                links.AddRange(ExtractLinksFromInline(paragraph.Inline));
+                break;
+
+            case ListBlock list:
+                foreach (var item in list.OfType<ListItemBlock>())
+                {
+                    foreach (var itemChild in item)
+                    {
+                        if (itemChild is ParagraphBlock itemParagraph)
+                        {
+                            links.AddRange(ExtractLinksFromInline(itemParagraph.Inline));
+                        }
+                    }
+                }
+                break;
+        }
+        
+        return links;
+    }
+
+    /// <summary>
+    /// Extracts document links from Markdig inline elements.
+    /// </summary>
+    private List<DocumentLink> ExtractLinksFromInline(ContainerInline? inline)
+    {
+        var links = new List<DocumentLink>();
+        if (inline == null) return links;
+
+        foreach (var child in inline)
+        {
+            if (child is LinkInline link)
+            {
+                var documentLink = new DocumentLink
+                {
+                    Url = link.Url ?? "",
+                    Text = ExtractInlineText(link),
+                    Title = link.Title,
+                    Type = DetermineLinkType(link.Url ?? "")
+                };
+                links.Add(documentLink);
+            }
+            else if (child is ContainerInline container)
+            {
+                links.AddRange(ExtractLinksFromInline(container));
+            }
+        }
+        
+        return links;
+    }
+
+    /// <summary>
+    /// Determines the type of link based on its URL.
+    /// </summary>
+    private LinkType DetermineLinkType(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return LinkType.Other;
+            
+        if (url.StartsWith("http://") || url.StartsWith("https://"))
+            return LinkType.External;
+            
+        if (url.StartsWith("mailto:"))
+            return LinkType.Email;
+            
+        if (url.StartsWith("#"))
+            return LinkType.Anchor;
+            
+        if (url.StartsWith("./") || url.StartsWith("../") || (!url.Contains("://") && (url.EndsWith(".md") || url.EndsWith(".html") || url.Contains("/"))))
+            return LinkType.Internal;
+            
+        return LinkType.Other;
     }
 
     /// <summary>
