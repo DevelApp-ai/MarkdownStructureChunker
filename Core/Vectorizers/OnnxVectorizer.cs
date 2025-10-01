@@ -4,6 +4,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using Microsoft.ML.Tokenizers;
 using System.Numerics.Tensors;
 using System.Text;
+using OnnxTensor = Microsoft.ML.OnnxRuntime.Tensors.Tensor<float>;
 
 namespace MarkdownStructureChunker.Core.Vectorizers;
 
@@ -247,7 +248,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             // Enhanced output processing
             var embeddings = ProcessModelOutputEnhanced(outputs);
             
-            return NormalizeVector(embeddings);
+            return NormalizeVectorL2(embeddings);
         }
         catch (Exception ex)
         {
@@ -362,10 +363,11 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     }
 
     /// <summary>
-    /// Enhanced model output processing with better error handling.
+    /// Enhanced model output processing following GraphRAG optimization strategy.
+    /// Implements proper attention-masked mean pooling for superior embedding quality.
     /// </summary>
     /// <param name="outputs">Model outputs</param>
-    /// <returns>Processed embedding vector</returns>
+    /// <returns>Processed embedding vector with L2 normalization</returns>
     private float[] ProcessModelOutputEnhanced(IReadOnlyCollection<NamedOnnxValue> outputs)
     {
         try
@@ -376,67 +378,234 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 return new float[VectorDimension];
             }
 
-            // Try multiple output names for compatibility
-            var outputNames = new[] { "last_hidden_state", "hidden_states", "output", "logits" };
-            NamedOnnxValue? targetOutput = null;
+            // Extract last_hidden_state tensor (primary output)
+            var lastHiddenState = ExtractTensor(outputs, "last_hidden_state");
             
-            foreach (var name in outputNames)
+            // Try to extract attention_mask tensor
+            var attentionMask = TryExtractTensor(outputs, "attention_mask");
+            
+            // If attention mask is available, use sophisticated attention-masked mean pooling
+            if (attentionMask != null)
             {
-                targetOutput = outputs.FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-                if (targetOutput != null) break;
+                return ComputeAttentionMaskedMeanPooling(lastHiddenState, attentionMask);
             }
-            
-            targetOutput ??= outputs.First();
-            
-            var tensor = targetOutput.AsTensor<float>();
-            var shape = tensor.Dimensions.ToArray();
-            
-            if (shape.Length < 2)
+            else
             {
-                Console.WriteLine($"Warning: Unexpected tensor shape: [{string.Join(", ", shape)}]");
-                return new float[VectorDimension];
+                // Fallback to improved mean pooling if no attention mask
+                Console.WriteLine("Warning: No attention mask found. Using improved mean pooling.");
+                return ComputeImprovedMeanPooling(lastHiddenState);
             }
-            
-            var sequenceLength = shape[1];
-            var hiddenSize = shape.Length > 2 ? shape[2] : VectorDimension;
-            hiddenSize = Math.Min(hiddenSize, VectorDimension);
-            
-            var embeddings = new float[VectorDimension];
-            
-            // Enhanced mean pooling with attention consideration
-            for (int h = 0; h < hiddenSize; h++)
-            {
-                float sum = 0;
-                int validTokens = 0;
-                
-                for (int s = 0; s < sequenceLength && s < _maxSequenceLength; s++)
-                {
-                    try
-                    {
-                        float value = shape.Length == 3 ? tensor[0, s, h] : tensor[0, s * hiddenSize + h];
-                        
-                        if (Math.Abs(value) > 1e-8) // Only count non-zero values
-                        {
-                            sum += value;
-                            validTokens++;
-                        }
-                    }
-                    catch
-                    {
-                        break;
-                    }
-                }
-                
-                embeddings[h] = validTokens > 0 ? sum / validTokens : 0;
-            }
-            
-            return embeddings;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in enhanced output processing: {ex.Message}");
-            return new float[VectorDimension];
+            Console.WriteLine($"Error processing ONNX model outputs: {ex.Message}");
+            return new float[VectorDimension]; // Return zero vector as fallback
         }
+    }
+
+    /// <summary>
+    /// Computes attention-masked mean pooling following GraphRAG optimization strategy.
+    /// 
+    /// This implementation follows the precise steps recommended in the GraphRAG document:
+    /// 1. Extract last_hidden_state tensor [batch_size, sequence_length, hidden_size]
+    /// 2. Expand attention mask to match embedding dimensions
+    /// 3. Element-wise multiplication with attention mask
+    /// 4. Sum along sequence dimension
+    /// 5. Divide by actual token count (from attention mask sum)
+    /// 6. L2 normalize the result
+    /// </summary>
+    /// <param name="lastHiddenState">Hidden states tensor from transformer model</param>
+    /// <param name="attentionMask">Attention mask tensor indicating real vs padded tokens</param>
+    /// <returns>Attention-masked mean pooled embedding vector</returns>
+    private float[] ComputeAttentionMaskedMeanPooling(OnnxTensor lastHiddenState, OnnxTensor attentionMask)
+    {
+        var dimensions = lastHiddenState.Dimensions.ToArray();
+        var batchSize = dimensions[0];
+        var sequenceLength = dimensions[1];
+        var hiddenSize = dimensions[2];
+        
+        // Validate dimensions
+        if (batchSize != 1)
+        {
+            Console.WriteLine($"Warning: Batch size {batchSize} > 1. Using first batch only.");
+        }
+        
+        var maskDimensions = attentionMask.Dimensions.ToArray();
+        if (maskDimensions.Length != 2 || maskDimensions[1] != sequenceLength)
+        {
+            throw new InvalidOperationException(
+                $"Attention mask dimensions {string.Join("x", maskDimensions)} incompatible with hidden states {string.Join("x", dimensions)}");
+        }
+        
+        // Initialize result vector
+        var result = new float[hiddenSize];
+        
+        // Step 1: Calculate total number of real (non-padded) tokens
+        float totalTokens = 0f;
+        for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
+        {
+            totalTokens += attentionMask[0, seqIdx];
+        }
+        
+        if (totalTokens == 0)
+        {
+            Console.WriteLine("Warning: No real tokens found in attention mask. Returning zero vector.");
+            return NormalizeVectorL2(result);
+        }
+        
+        // Step 2: Apply attention mask and sum embeddings
+        // For each sequence position, multiply hidden states by attention mask value
+        for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
+        {
+            var maskValue = attentionMask[0, seqIdx];
+            
+            if (maskValue > 0) // Only process non-padded tokens
+            {
+                // Element-wise multiplication: hidden_state * mask_value
+                for (int hiddenIdx = 0; hiddenIdx < hiddenSize; hiddenIdx++)
+                {
+                    result[hiddenIdx] += lastHiddenState[0, seqIdx, hiddenIdx] * maskValue;
+                }
+            }
+        }
+        
+        // Step 3: Compute true average by dividing by actual token count
+        for (int i = 0; i < hiddenSize; i++)
+        {
+            result[i] /= totalTokens;
+        }
+        
+        // Step 4: L2 normalize the result
+        return NormalizeVectorL2(result);
+    }
+
+    /// <summary>
+    /// Improved mean pooling when attention mask is not available.
+    /// Still applies L2 normalization as recommended by GraphRAG.
+    /// </summary>
+    /// <param name="lastHiddenState">Hidden states tensor</param>
+    /// <returns>Mean pooled and L2 normalized embedding vector</returns>
+    private float[] ComputeImprovedMeanPooling(OnnxTensor lastHiddenState)
+    {
+        var dimensions = lastHiddenState.Dimensions.ToArray();
+        var sequenceLength = dimensions[1];
+        var hiddenSize = dimensions.Length > 2 ? dimensions[2] : VectorDimension;
+        
+        // Ensure we don't exceed expected vector dimension
+        hiddenSize = Math.Min(hiddenSize, VectorDimension);
+        var result = new float[VectorDimension];
+        
+        // Simple average across all sequence positions
+        for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
+        {
+            for (int hiddenIdx = 0; hiddenIdx < hiddenSize; hiddenIdx++)
+            {
+                float value;
+                if (dimensions.Length == 3)
+                {
+                    value = lastHiddenState[0, seqIdx, hiddenIdx];
+                }
+                else
+                {
+                    // Handle 2D tensors (flattened)
+                    value = lastHiddenState[0, seqIdx * hiddenSize + hiddenIdx];
+                }
+                
+                result[hiddenIdx] += value;
+            }
+        }
+        
+        // Divide by sequence length
+        for (int i = 0; i < hiddenSize; i++)
+        {
+            result[i] /= sequenceLength;
+        }
+        
+        return NormalizeVectorL2(result);
+    }
+
+    /// <summary>
+    /// Extracts a required tensor from ONNX model outputs.
+    /// </summary>
+    /// <param name="outputs">ONNX model outputs</param>
+    /// <param name="tensorName">Name of the tensor to extract</param>
+    /// <returns>The extracted tensor</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the tensor is not found</exception>
+    private OnnxTensor ExtractTensor(IReadOnlyCollection<NamedOnnxValue> outputs, string tensorName)
+    {
+        var output = outputs.FirstOrDefault(o => o.Name.Equals(tensorName, StringComparison.OrdinalIgnoreCase));
+        
+        if (output == null)
+        {
+            // Try alternative names for compatibility
+            var alternativeNames = new[] { "hidden_states", "encoder_outputs", "output", "logits" };
+            foreach (var altName in alternativeNames)
+            {
+                output = outputs.FirstOrDefault(o => o.Name.Equals(altName, StringComparison.OrdinalIgnoreCase));
+                if (output != null)
+                {
+                    Console.WriteLine($"Warning: Using alternative tensor name '{altName}' instead of '{tensorName}'");
+                    break;
+                }
+            }
+            
+            if (output == null)
+            {
+                // Use first available output as ultimate fallback
+                output = outputs.First();
+                Console.WriteLine($"Warning: Tensor '{tensorName}' not found. Using first available output '{output.Name}'");
+            }
+        }
+        
+        return output.AsTensor<float>();
+    }
+
+    /// <summary>
+    /// Tries to extract an optional tensor from ONNX model outputs.
+    /// </summary>
+    /// <param name="outputs">ONNX model outputs</param>
+    /// <param name="tensorName">Name of the tensor to extract</param>
+    /// <returns>The extracted tensor, or null if not found</returns>
+    private OnnxTensor? TryExtractTensor(IReadOnlyCollection<NamedOnnxValue> outputs, string tensorName)
+    {
+        try
+        {
+            var output = outputs.FirstOrDefault(o => o.Name.Equals(tensorName, StringComparison.OrdinalIgnoreCase));
+            return output?.AsTensor<float>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not extract optional tensor '{tensorName}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Performs L2 normalization on a vector as recommended by GraphRAG strategy.
+    /// This ensures the vector has unit length, making dot product equivalent to cosine similarity.
+    /// </summary>
+    /// <param name="vector">Vector to normalize</param>
+    /// <returns>L2 normalized vector</returns>
+    private static float[] NormalizeVectorL2(float[] vector)
+    {
+        // Calculate L2 norm (Euclidean length)
+        var sumOfSquares = vector.Sum(x => x * x);
+        var magnitude = (float)Math.Sqrt(sumOfSquares);
+        
+        if (magnitude > 0)
+        {
+            // Normalize to unit length
+            for (int i = 0; i < vector.Length; i++)
+            {
+                vector[i] /= magnitude;
+            }
+        }
+        else
+        {
+            Console.WriteLine("Warning: Zero magnitude vector encountered during L2 normalization");
+        }
+        
+        return vector;
     }
 
     /// <summary>
@@ -472,7 +641,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         // Enhanced text features
         AddEnhancedTextFeatures(vector, text);
         
-        return NormalizeVector(vector);
+        return NormalizeVectorL2(vector);
     }
 
     /// <summary>
@@ -645,7 +814,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         // Add text-specific features based on content analysis
         AddTextFeatures(vector, text);
         
-        return NormalizeVector(vector);
+        return NormalizeVectorL2(vector);
     }
 
     /// <summary>
