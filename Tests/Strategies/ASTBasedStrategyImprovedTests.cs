@@ -184,25 +184,36 @@ New chapter.";
     }
 
     [Fact]
-    public void DetermineLinkType_ClassifiesLinksCorrectly()
+    public void ProcessTextToStructure_ClassifiesLinkTypesCorrectly()
     {
-        // This tests the link type classification logic
+        // Test link type classification through the public API instead of reflection
         var strategy = new ASTBasedStrategy();
         
-        // Use reflection to access the private method for testing
-        var method = typeof(ASTBasedStrategy).GetMethod("DetermineLinkType", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        Assert.NotNull(method);
+        var markdown = @"# Test Links
 
-        // Test various link types
-        Assert.Equal(LinkType.External, method.Invoke(strategy, new[] { "https://example.com" }));
-        Assert.Equal(LinkType.External, method.Invoke(strategy, new[] { "http://example.com" }));
-        Assert.Equal(LinkType.Email, method.Invoke(strategy, new[] { "mailto:test@example.com" }));
-        Assert.Equal(LinkType.Anchor, method.Invoke(strategy, new[] { "#section" }));
-        Assert.Equal(LinkType.Internal, method.Invoke(strategy, new[] { "./doc.md" }));
-        Assert.Equal(LinkType.Internal, method.Invoke(strategy, new[] { "../folder/doc.md" }));
-        Assert.Equal(LinkType.Internal, method.Invoke(strategy, new[] { "folder/doc.html" }));
-        Assert.Equal(LinkType.Other, method.Invoke(strategy, new[] { "ftp://example.com" }));
+[External HTTPS](https://example.com)
+[External HTTP](http://example.com)
+[Email](mailto:test@example.com)
+[Anchor](#section)
+[Relative Internal](./doc.md)
+[Parent Internal](../folder/doc.md)
+[Simple Internal](folder/doc.html)
+[FTP Link](ftp://example.com)";
+
+        // Act
+        var (elements, edges, chunks) = strategy.ProcessTextToStructure(markdown, "test-doc");
+
+        // Assert - Check that links are properly classified
+        var allLinks = elements.SelectMany(e => e.Links).ToList();
+        
+        Assert.Contains(allLinks, l => l.Type == LinkType.External && l.Url == "https://example.com");
+        Assert.Contains(allLinks, l => l.Type == LinkType.External && l.Url == "http://example.com");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Email && l.Url == "mailto:test@example.com");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Anchor && l.Url == "#section");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Internal && l.Url == "./doc.md");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Internal && l.Url == "../folder/doc.md");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Internal && l.Url == "folder/doc.html");
+        Assert.Contains(allLinks, l => l.Type == LinkType.Other && l.Url == "ftp://example.com");
     }
 
     [Fact]

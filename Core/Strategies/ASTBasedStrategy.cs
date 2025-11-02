@@ -417,10 +417,21 @@ public class ASTBasedStrategy : IChunkingStrategy
         if (url.StartsWith("#"))
             return LinkType.Anchor;
             
-        if (url.StartsWith("./") || url.StartsWith("../") || (!url.Contains("://") && (url.EndsWith(".md") || url.EndsWith(".html") || url.Contains("/"))))
+        if (IsInternalDocumentLink(url))
             return LinkType.Internal;
             
         return LinkType.Other;
+    }
+
+    /// <summary>
+    /// Determines if the given URL is an internal document link.
+    /// </summary>
+    private bool IsInternalDocumentLink(string url)
+    {
+        return url.StartsWith("./") ||
+               url.StartsWith("../") ||
+               (!url.Contains("://") &&
+                (url.EndsWith(".md") || url.EndsWith(".html") || url.Contains("/")));
     }
 
     /// <summary>
