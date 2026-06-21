@@ -257,7 +257,7 @@ public class CustomKeywordConfigurationTests
     public void CreateWithCustomKeywords_WithNullKeywords_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             ChunkerConfiguration.CreateWithCustomKeywords(null!));
     }
 
@@ -285,7 +285,7 @@ public class CustomKeywordConfigurationTests
     public void CreateForDocumentMapping_WithNullKeywords_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             ChunkerConfiguration.CreateForDocumentMapping(null!));
     }
 

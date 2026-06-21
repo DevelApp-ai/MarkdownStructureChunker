@@ -56,10 +56,9 @@ public class StructureChunker : IDisposable
     private static IChunkingStrategy CreateStrategyFromConfiguration(ChunkerConfiguration config)
     {
         var rules = PatternBasedStrategy.CreateDefaultRules();
-        
-        // TODO: In future versions, we could create different strategies based on config
-        // For now, we use the PatternBasedStrategy with default rules
-        return new PatternBasedStrategy(rules);
+
+        // TODO: In future versions, we could create different strategy types based on config
+        return new PatternBasedStrategy(rules, config);
     }
 
     /// <summary>
@@ -103,15 +102,15 @@ public class StructureChunker : IDisposable
     {
         if (configuration == null)
             throw new ArgumentNullException(nameof(configuration));
-            
+
         configuration.Validate();
 
         var strategy = new Strategies.ASTBasedStrategy();
         var extractor = CreateExtractorFromConfiguration(configuration);
-        
+
         // Create instance using the strategy-based constructor and store configuration separately
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         // Note: For full configuration support with AST strategy, 
         // users should use CreateStructureFirst() and call ProcessWithStructureAsync()
         return chunker;
@@ -152,7 +151,7 @@ public class StructureChunker : IDisposable
                 {
                     // Combine custom and extracted keywords
                     keywords = await CombineKeywordsAsync(chunk, cancellationToken);
-                    
+
                     // Respect MaxKeywordsPerChunk if configuration is available
                     if (_configuration != null && keywords.Count > _configuration.MaxKeywordsPerChunk)
                     {
@@ -223,7 +222,7 @@ public class StructureChunker : IDisposable
             {
                 // Combine custom and extracted keywords
                 keywords = await CombineKeywordsAsync(chunk, cancellationToken);
-                
+
                 // Respect MaxKeywordsPerChunk if configuration is available
                 if (_configuration != null && keywords.Count > _configuration.MaxKeywordsPerChunk)
                 {
@@ -257,7 +256,7 @@ public class StructureChunker : IDisposable
         // Use a default source ID for this API
         var sourceId = Guid.NewGuid().ToString();
         var documentGraph = await ProcessAsync(content, sourceId, cancellationToken);
-        
+
         return documentGraph.Chunks;
     }
 
@@ -323,7 +322,9 @@ public class StructureChunker : IDisposable
         }
 
         // 4. Extract keywords from content
-        var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(chunk.Content);
+        var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(
+            chunk.Content,
+            _configuration?.MaxKeywordsPerChunk ?? 10);
 
         // 5. Combine and prioritize keywords
         List<string> finalKeywords;
@@ -345,13 +346,13 @@ public class StructureChunker : IDisposable
             // Mix all keywords and sort by relevance (frequency for extracted, order for custom)
             var customKeywordSet = new HashSet<string>(allKeywords, StringComparer.OrdinalIgnoreCase);
             var mixedKeywords = new List<string>();
-            
+
             // Add custom keywords first (they're considered high priority)
             mixedKeywords.AddRange(allKeywords.Distinct(StringComparer.OrdinalIgnoreCase));
-            
+
             // Add extracted keywords that aren't already included
             mixedKeywords.AddRange(extractedKeywords.Where(k => !customKeywordSet.Contains(k)));
-            
+
             finalKeywords = mixedKeywords.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
@@ -380,4 +381,3 @@ public class StructureChunker : IDisposable
         }
     }
 }
-

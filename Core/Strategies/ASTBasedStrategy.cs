@@ -127,7 +127,7 @@ public class ASTBasedStrategy : IChunkingStrategy
             if (element != null)
             {
                 elements.Add(element);
-                
+
                 if (parent != null)
                 {
                     var relationshipType = DetermineRelationshipType(parent, element);
@@ -161,17 +161,17 @@ public class ASTBasedStrategy : IChunkingStrategy
             {
                 // More precise hierarchical relationship detection
                 StructuralElement? parentHeading = null;
-                
+
                 // Pop headings from stack until we find one with lower level (higher importance)
                 while (headingStack.Count > 0 && headingStack.Peek().Level >= element.Level)
                 {
                     headingStack.Pop();
                 }
-                
+
                 if (headingStack.Count > 0)
                 {
                     parentHeading = headingStack.Peek();
-                    
+
                     // Determine the appropriate relationship type based on level difference
                     var relationshipType = DetermineHeadingRelationshipType(parentHeading, element);
                     edges.Add(new GraphEdge
@@ -209,7 +209,7 @@ public class ASTBasedStrategy : IChunkingStrategy
                         RelationshipType = relationshipType
                     });
                 }
-                
+
                 // Extract and create link relationships if this element contains links
                 CreateLinkRelationships(element, elements, edges);
             }
@@ -222,7 +222,7 @@ public class ASTBasedStrategy : IChunkingStrategy
     private string DetermineHeadingRelationshipType(StructuralElement parent, StructuralElement child)
     {
         var levelDifference = child.Level - parent.Level;
-        
+
         if (levelDifference == 1)
         {
             // Sequential levels (h1->h2, h2->h3) - direct subsection
@@ -262,9 +262,9 @@ public class ASTBasedStrategy : IChunkingStrategy
                         ["LinkTitle"] = link.Title ?? ""
                     }
                 };
-                
+
                 elements.Add(linkElement);
-                
+
                 edges.Add(new GraphEdge
                 {
                     SourceElementId = element.Id,
@@ -342,7 +342,7 @@ public class ASTBasedStrategy : IChunkingStrategy
     private List<DocumentLink> ExtractLinksFromBlock(Block block)
     {
         var links = new List<DocumentLink>();
-        
+
         switch (block)
         {
             case HeadingBlock heading:
@@ -366,7 +366,7 @@ public class ASTBasedStrategy : IChunkingStrategy
                 }
                 break;
         }
-        
+
         return links;
     }
 
@@ -396,7 +396,7 @@ public class ASTBasedStrategy : IChunkingStrategy
                 links.AddRange(ExtractLinksFromInline(container));
             }
         }
-        
+
         return links;
     }
 
@@ -407,19 +407,19 @@ public class ASTBasedStrategy : IChunkingStrategy
     {
         if (string.IsNullOrEmpty(url))
             return LinkType.Other;
-            
+
         if (url.StartsWith("http://") || url.StartsWith("https://"))
             return LinkType.External;
-            
+
         if (url.StartsWith("mailto:"))
             return LinkType.Email;
-            
+
         if (url.StartsWith("#"))
             return LinkType.Anchor;
-            
+
         if (IsInternalDocumentLink(url))
             return LinkType.Internal;
-            
+
         return LinkType.Other;
     }
 

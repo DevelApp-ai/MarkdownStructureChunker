@@ -74,7 +74,7 @@ This is the details content.";
 
         // Assert
         Assert.Equal(3, result.Count);
-        
+
         var intro = result[0];
         Assert.Equal("MarkdownH1", intro.ChunkType);
         Assert.Equal(1, intro.Level);
@@ -123,7 +123,7 @@ Content for another first level.";
 
         // Assert
         Assert.Equal(4, result.Count);
-        
+
         var first = result[0];
         Assert.Equal("Numeric", first.ChunkType);
         Assert.Equal(1, first.Level);
@@ -171,7 +171,7 @@ Appendix content.";
 
         // Assert
         Assert.Equal(5, result.Count);
-        
+
         Assert.Equal("MarkdownH1", result[0].ChunkType);
         Assert.Equal("Numeric", result[1].ChunkType);
         Assert.Equal("Numeric", result[2].ChunkType);
@@ -193,7 +193,7 @@ Appendix content.";
         Assert.Contains(rules, r => r.Type == "Numeric");
         Assert.Contains(rules, r => r.Type == "Legal");
         Assert.Contains(rules, r => r.Type == "Appendix");
-        
+
         // Verify priority ordering
         var sortedRules = rules.OrderBy(r => r.Priority).ToList();
         Assert.Equal(rules, sortedRules);
@@ -242,7 +242,7 @@ Another chapter content.";
 
         // Assert
         Assert.Equal(5, result.Count);
-        
+
         var chapter1 = result[0];
         var section11 = result[1];
         var subsection111 = result[2];

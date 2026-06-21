@@ -72,7 +72,7 @@ public class StructureChunkerIntegrationTests
         var strategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var extractor = new SimpleKeywordExtractor();
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         var document = @"# Introduction
 This document introduces the concept of machine learning and its applications in modern technology.
 
@@ -131,7 +131,7 @@ Machine learning continues to transform how we solve complex problems.";
         var strategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var extractor = new SimpleKeywordExtractor();
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         var document = @"1. Project Overview
 This project aims to develop a comprehensive document processing system.
 
@@ -204,7 +204,7 @@ Response time should be under 100ms for typical documents.";
         var strategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var extractor = new SimpleKeywordExtractor();
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         var document = @"# Legal Document Analysis
 
 ## 1. Introduction
@@ -265,7 +265,7 @@ Government regulations and compliance requirements.";
         var strategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var extractor = new SimpleKeywordExtractor();
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         var document = @"# Test Document
 This is a test document for synchronous processing.
 
@@ -288,7 +288,7 @@ Content for section 1.";
         var strategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         using var extractor = new MLNetKeywordExtractor();
         var chunker = new StructureChunker(strategy, extractor);
-        
+
         var document = @"# Machine Learning Overview
 Machine learning algorithms enable computers to learn patterns from data without explicit programming.
 
@@ -301,14 +301,14 @@ Neural networks are computational models inspired by biological neural networks 
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Chunks.Count);
-        
+
         // Verify keywords are extracted
         Assert.All(result.Chunks, chunk => Assert.NotEmpty(chunk.Keywords));
-        
+
         var overview = result.Chunks[0];
         Assert.Contains("machine", overview.Keywords);
         Assert.Contains("learning", overview.Keywords);
-        
+
         var networks = result.Chunks[1];
         Assert.Contains("neural", networks.Keywords);
         Assert.Contains("networks", networks.Keywords);

@@ -40,7 +40,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     public OnnxVectorizer(string? modelPath = null, string? tokenizerPath = null, int maxSequenceLength = 512)
     {
         _maxSequenceLength = maxSequenceLength;
-        
+
         try
         {
             if (!string.IsNullOrEmpty(modelPath) && File.Exists(modelPath))
@@ -59,15 +59,15 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 sessionOptions.IntraOpNumThreads = Environment.ProcessorCount;
                 sessionOptions.ExecutionMode = ExecutionMode.ORT_PARALLEL;
                 sessionOptions.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
-                
+
                 // Enable memory optimizations
                 sessionOptions.EnableMemoryPattern = true;
                 sessionOptions.EnableCpuMemArena = true;
-                
+
                 _session = new InferenceSession(modelPath, sessionOptions);
                 _tokenizer = LoadTokenizer(tokenizerPath);
                 _isModelAvailable = true;
-                
+
                 Console.WriteLine($"Enhanced ONNX model loaded successfully from: {modelPath}");
                 Console.WriteLine($"Model inputs: {string.Join(", ", _session.InputMetadata.Keys)}");
                 Console.WriteLine($"Model outputs: {string.Join(", ", _session.OutputMetadata.Keys)}");
@@ -97,27 +97,27 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         try
         {
             var fileInfo = new FileInfo(modelPath);
-            
+
             // Check file size (should be reasonable for a transformer model)
             if (fileInfo.Length < 1024 * 1024) // Less than 1MB is suspicious
             {
                 Console.WriteLine($"Warning: Model file seems too small: {fileInfo.Length} bytes");
                 return false;
             }
-            
+
             if (fileInfo.Length > 10L * 1024 * 1024 * 1024) // More than 10GB is suspicious
             {
                 Console.WriteLine($"Warning: Model file seems too large: {fileInfo.Length} bytes");
                 return false;
             }
-            
+
             // Check file extension
             if (!modelPath.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"Warning: Model file doesn't have .onnx extension: {modelPath}");
                 return false;
             }
-            
+
             return true;
         }
         catch (Exception ex)
@@ -147,7 +147,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                     // Note: This would need the correct API call when Microsoft.ML.Tokenizers supports it
                     // For now, fall back to BERT tokenizer
                 }
-                
+
                 // Fallback to vocab.txt for BERT-style tokenizers
                 var vocabPath = Path.Combine(tokenizerPath, "vocab.txt");
                 if (File.Exists(vocabPath))
@@ -155,10 +155,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                     Console.WriteLine($"Loading BERT tokenizer from: {vocabPath}");
                     return BertTokenizer.Create(vocabPath);
                 }
-                
+
                 Console.WriteLine($"No compatible tokenizer files found in: {tokenizerPath}");
             }
-            
+
             Console.WriteLine("Tokenizer files not found. Using enhanced fallback tokenization.");
             return null;
         }
@@ -211,7 +211,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         // For now, process in parallel. In future versions, we could implement true batch processing
         var tasks = textList.Select(text => VectorizeAsync(text, isQuery));
         var results = await Task.WhenAll(tasks);
-        
+
         return results;
     }
 
@@ -230,24 +230,24 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         {
             // Enhanced tokenization
             var tokens = EnhancedTokenizeText(text);
-            
+
             // Create input tensors
             var inputTensors = CreateInputTensors(tokens);
-            
+
             // Run ONNX inference with performance monitoring
             var startTime = DateTime.UtcNow;
             var outputs = await Task.Run(() => _session.Run(inputTensors));
             var inferenceTime = DateTime.UtcNow - startTime;
-            
+
             // Log performance for monitoring (could be configurable)
             if (inferenceTime.TotalMilliseconds > 1000) // Log slow inferences
             {
                 Console.WriteLine($"Slow ONNX inference detected: {inferenceTime.TotalMilliseconds:F2}ms for text length {text.Length}");
             }
-            
+
             // Enhanced output processing
             var embeddings = ProcessModelOutputEnhanced(outputs);
-            
+
             return NormalizeVectorL2(embeddings);
         }
         catch (Exception ex)
@@ -270,21 +270,21 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             {
                 var encoding = _tokenizer.EncodeToTokens(text, out var normalizedText);
                 var inputIds = encoding.Select(token => token.Id).Take(_maxSequenceLength - 2).ToArray(); // Reserve space for special tokens
-                
+
                 // Add special tokens: [CLS] at start, [SEP] at end
                 var finalInputIds = new List<int> { 101 }; // [CLS] token
                 finalInputIds.AddRange(inputIds);
                 finalInputIds.Add(102); // [SEP] token
-                
+
                 var attentionMask = Enumerable.Repeat(1, finalInputIds.Count).ToArray();
-                
+
                 // Pad to max sequence length
                 var paddedInputIds = new int[_maxSequenceLength];
                 var paddedAttentionMask = new int[_maxSequenceLength];
-                
+
                 Array.Copy(finalInputIds.ToArray(), paddedInputIds, Math.Min(finalInputIds.Count, _maxSequenceLength));
                 Array.Copy(attentionMask, paddedAttentionMask, Math.Min(attentionMask.Length, _maxSequenceLength));
-                
+
                 return new TokenizationResult(paddedInputIds, paddedAttentionMask);
             }
             catch (Exception ex)
@@ -292,7 +292,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 Console.WriteLine($"Enhanced tokenization error: {ex.Message}. Using fallback.");
             }
         }
-        
+
         // Enhanced fallback tokenization
         return CreateEnhancedFallbackTokenization(text);
     }
@@ -309,11 +309,11 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             .Replace('\n', ' ')
             .Replace('\r', ' ')
             .Replace('\t', ' ');
-        
+
         // Better subword splitting
         var subwords = new List<string>();
         var words = normalizedText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var word in words)
         {
             if (word.Length > 6)
@@ -330,16 +330,16 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 subwords.Add(word);
             }
         }
-        
+
         var maxContentLength = _maxSequenceLength - 2;
         subwords = subwords.Take(maxContentLength).ToList();
-        
+
         var inputIds = new int[_maxSequenceLength];
         var attentionMask = new int[_maxSequenceLength];
-        
+
         inputIds[0] = 101; // [CLS]
         attentionMask[0] = 1;
-        
+
         // Enhanced token ID generation
         for (int i = 0; i < subwords.Count; i++)
         {
@@ -348,17 +348,17 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             var hash2 = subword.Reverse().ToString()?.GetHashCode() ?? 0;
             var combinedHash = hash1 ^ (hash2 << 1);
             var tokenId = Math.Abs(combinedHash) % 29000 + 1000;
-            
+
             inputIds[i + 1] = tokenId;
             attentionMask[i + 1] = 1;
         }
-        
+
         if (subwords.Count < maxContentLength)
         {
             inputIds[subwords.Count + 1] = 102; // [SEP]
             attentionMask[subwords.Count + 1] = 1;
         }
-        
+
         return new TokenizationResult(inputIds, attentionMask);
     }
 
@@ -380,10 +380,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
 
             // Extract last_hidden_state tensor (primary output)
             var lastHiddenState = ExtractTensor(outputs, "last_hidden_state");
-            
+
             // Try to extract attention_mask tensor
             var attentionMask = TryExtractTensor(outputs, "attention_mask");
-            
+
             // If attention mask is available, use sophisticated attention-masked mean pooling
             if (attentionMask != null)
             {
@@ -423,42 +423,42 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         var batchSize = dimensions[0];
         var sequenceLength = dimensions[1];
         var hiddenSize = dimensions[2];
-        
+
         // Validate dimensions
         if (batchSize != 1)
         {
             Console.WriteLine($"Warning: Batch size {batchSize} > 1. Using first batch only.");
         }
-        
+
         var maskDimensions = attentionMask.Dimensions.ToArray();
         if (maskDimensions.Length != 2 || maskDimensions[1] != sequenceLength)
         {
             throw new InvalidOperationException(
                 $"Attention mask dimensions {string.Join("x", maskDimensions)} incompatible with hidden states {string.Join("x", dimensions)}");
         }
-        
+
         // Initialize result vector
         var result = new float[hiddenSize];
-        
+
         // Step 1: Calculate total number of real (non-padded) tokens
         float totalTokens = 0f;
         for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
         {
             totalTokens += attentionMask[0, seqIdx];
         }
-        
+
         if (totalTokens == 0)
         {
             Console.WriteLine("Warning: No real tokens found in attention mask. Returning zero vector.");
             return NormalizeVectorL2(result);
         }
-        
+
         // Step 2: Apply attention mask and sum embeddings
         // For each sequence position, multiply hidden states by attention mask value
         for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
         {
             var maskValue = attentionMask[0, seqIdx];
-            
+
             if (maskValue > 0) // Only process non-padded tokens
             {
                 // Element-wise multiplication: hidden_state * mask_value
@@ -468,13 +468,13 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 }
             }
         }
-        
+
         // Step 3: Compute true average by dividing by actual token count
         for (int i = 0; i < hiddenSize; i++)
         {
             result[i] /= totalTokens;
         }
-        
+
         // Step 4: L2 normalize the result
         return NormalizeVectorL2(result);
     }
@@ -490,11 +490,11 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         var dimensions = lastHiddenState.Dimensions.ToArray();
         var sequenceLength = dimensions[1];
         var hiddenSize = dimensions.Length > 2 ? dimensions[2] : VectorDimension;
-        
+
         // Ensure we don't exceed expected vector dimension
         hiddenSize = Math.Min(hiddenSize, VectorDimension);
         var result = new float[VectorDimension];
-        
+
         // Simple average across all sequence positions
         for (int seqIdx = 0; seqIdx < sequenceLength; seqIdx++)
         {
@@ -510,17 +510,17 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                     // Handle 2D tensors (flattened)
                     value = lastHiddenState[0, seqIdx * hiddenSize + hiddenIdx];
                 }
-                
+
                 result[hiddenIdx] += value;
             }
         }
-        
+
         // Divide by sequence length
         for (int i = 0; i < hiddenSize; i++)
         {
             result[i] /= sequenceLength;
         }
-        
+
         return NormalizeVectorL2(result);
     }
 
@@ -534,7 +534,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     private OnnxTensor ExtractTensor(IReadOnlyCollection<NamedOnnxValue> outputs, string tensorName)
     {
         var output = outputs.FirstOrDefault(o => o.Name.Equals(tensorName, StringComparison.OrdinalIgnoreCase));
-        
+
         if (output == null)
         {
             // Try alternative names for compatibility
@@ -548,7 +548,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                     break;
                 }
             }
-            
+
             if (output == null)
             {
                 // Use first available output as ultimate fallback
@@ -556,7 +556,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 Console.WriteLine($"Warning: Tensor '{tensorName}' not found. Using first available output '{output.Name}'");
             }
         }
-        
+
         return output.AsTensor<float>();
     }
 
@@ -591,7 +591,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         // Calculate L2 norm (Euclidean length)
         var sumOfSquares = vector.Sum(x => x * x);
         var magnitude = (float)Math.Sqrt(sumOfSquares);
-        
+
         if (magnitude > 0)
         {
             // Normalize to unit length
@@ -604,7 +604,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         {
             Console.WriteLine("Warning: Zero magnitude vector encountered during L2 normalization");
         }
-        
+
         return vector;
     }
 
@@ -616,13 +616,13 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     private float[] GenerateEnhancedDeterministicVector(string text)
     {
         var vector = new float[VectorDimension];
-        
+
         // Multiple hash functions for better distribution
         var hash1 = text.GetHashCode();
         var hash2 = text.ToLowerInvariant().GetHashCode();
         var hash3 = text.Replace(" ", "").GetHashCode();
         var hash4 = text.Length.GetHashCode();
-        
+
         var randoms = new[]
         {
             new Random(hash1),
@@ -630,17 +630,17 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             new Random(hash3),
             new Random(hash4)
         };
-        
+
         // Generate vector with multiple strategies
         for (int i = 0; i < VectorDimension; i++)
         {
             var randomIndex = i % randoms.Length;
             vector[i] = (float)(randoms[randomIndex].NextDouble() * 2.0 - 1.0);
         }
-        
+
         // Enhanced text features
         AddEnhancedTextFeatures(vector, text);
-        
+
         return NormalizeVectorL2(vector);
     }
 
@@ -653,20 +653,20 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     {
         var textLower = text.ToLowerInvariant();
         var words = textLower.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         // Enhanced features
         var lengthFeature = Math.Min(text.Length / 1000.0f, 1.0f);
         var wordCountFeature = Math.Min(words.Length / 100.0f, 1.0f);
         var uniqueChars = text.ToCharArray().Distinct().Count();
         var diversityFeature = Math.Min(uniqueChars / 50.0f, 1.0f);
         var avgWordLength = words.Any() ? words.Average(w => w.Length) / 10.0f : 0;
-        
+
         // Apply features to different vector positions
         vector[0] += lengthFeature * 0.1f;
         vector[1] += wordCountFeature * 0.1f;
         vector[2] += diversityFeature * 0.1f;
         vector[3] += (float)avgWordLength * 0.1f;
-        
+
         // Word-based features with better distribution
         for (int i = 0; i < Math.Min(words.Length, vector.Length / 20); i++)
         {
@@ -708,23 +708,23 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     private List<NamedOnnxValue> CreateInputTensors(TokenizationResult tokens)
     {
         var inputTensors = new List<NamedOnnxValue>();
-        
+
         // Create input_ids tensor
         var inputIdsTensor = NamedOnnxValue.CreateFromTensor("input_ids",
             new DenseTensor<long>(tokens.InputIds.Select(x => (long)x).ToArray(), new int[] { 1, _maxSequenceLength }));
         inputTensors.Add(inputIdsTensor);
-        
+
         // Create attention_mask tensor
         var attentionMaskTensor = NamedOnnxValue.CreateFromTensor("attention_mask",
             new DenseTensor<long>(tokens.AttentionMask.Select(x => (long)x).ToArray(), new int[] { 1, _maxSequenceLength }));
         inputTensors.Add(attentionMaskTensor);
-        
+
         // Create token_type_ids tensor (all zeros for single sentence)
         var tokenTypeIds = new long[_maxSequenceLength];
         var tokenTypeIdsTensor = NamedOnnxValue.CreateFromTensor("token_type_ids",
             new DenseTensor<long>(tokenTypeIds, new int[] { 1, _maxSequenceLength }));
         inputTensors.Add(tokenTypeIdsTensor);
-        
+
         return inputTensors;
     }
 
@@ -740,17 +740,17 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             // Get the last hidden state (typically the first output)
             var firstOutput = outputs.First();
             var lastHiddenState = firstOutput.AsTensor<float>();
-            
+
             // Apply mean pooling over the sequence dimension
             var hiddenSize = VectorDimension;
             var embeddings = new float[hiddenSize];
-            
+
             // Mean pooling: average over all token positions
             for (int i = 0; i < hiddenSize; i++)
             {
                 float sum = 0;
                 int count = 0;
-                
+
                 for (int j = 0; j < _maxSequenceLength; j++)
                 {
                     try
@@ -765,10 +765,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                         break;
                     }
                 }
-                
+
                 embeddings[i] = count > 0 ? sum / count : 0;
             }
-            
+
             return embeddings;
         }
         catch (Exception ex)
@@ -787,17 +787,17 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     private float[] GenerateDeterministicVector(string text)
     {
         var vector = new float[VectorDimension];
-        
+
         // Use multiple hash functions for better distribution
         var hash1 = text.GetHashCode();
         var hash2 = text.ToLowerInvariant().GetHashCode();
         var hash3 = text.Replace(" ", "").GetHashCode();
-        
+
         // Create multiple random generators with different seeds
         var random1 = new Random(hash1);
         var random2 = new Random(hash2);
         var random3 = new Random(hash3);
-        
+
         // Generate vector components using different strategies
         for (int i = 0; i < VectorDimension; i++)
         {
@@ -807,13 +807,13 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 1 => (float)(random2.NextDouble() * 2.0 - 1.0),
                 _ => (float)(random3.NextDouble() * 2.0 - 1.0)
             };
-            
+
             vector[i] = component;
         }
-        
+
         // Add text-specific features based on content analysis
         AddTextFeatures(vector, text);
-        
+
         return NormalizeVectorL2(vector);
     }
 
@@ -826,20 +826,20 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     {
         var textLower = text.ToLowerInvariant();
         var words = textLower.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         // Text length feature
         var lengthFeature = Math.Min(text.Length / 1000.0f, 1.0f);
         vector[0] += lengthFeature * 0.1f;
-        
+
         // Word count feature
         var wordCountFeature = Math.Min(words.Length / 100.0f, 1.0f);
         vector[1] += wordCountFeature * 0.1f;
-        
+
         // Character diversity feature
         var uniqueChars = text.ToCharArray().Distinct().Count();
         var diversityFeature = Math.Min(uniqueChars / 50.0f, 1.0f);
         vector[2] += diversityFeature * 0.1f;
-        
+
         // Add word-based features
         for (int i = 0; i < Math.Min(words.Length, vector.Length / 10); i++)
         {
@@ -917,7 +917,7 @@ public static class OnnxVectorizerFactory
         // Default paths where the model files would typically be located
         var modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "multilingual-e5-large.onnx");
         var tokenizerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "tokenizer");
-        
+
         return new OnnxVectorizer(modelPath, tokenizerPath);
     }
 

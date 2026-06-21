@@ -9,7 +9,7 @@ A powerful .NET library for intelligent document structure analysis and chunking
 - **Advanced Keyword Extraction**: Supports both simple frequency-based and ML.NET-powered keyword extraction
 - **ONNX Vectorization**: Integration with the intfloat/multilingual-e5-large model for semantic embeddings
 - **Extensible Architecture**: Plugin-based design allows for custom chunking strategies and extractors
-- **Comprehensive Testing**: 66+ unit and integration tests ensuring reliability
+- **Comprehensive Testing**: Extensive unit and integration tests (248 currently) ensuring reliability
 
 ## Quick Start
 
@@ -207,6 +207,17 @@ var advancedKeywords = await mlExtractor.ExtractKeywordsAsync(text, maxKeywords:
 - **ONNX Model Loading**: Loading the multilingual-e5-large model requires ~500MB RAM and 2-3 seconds initialization
 - **Concurrent Processing**: All components are thread-safe and support concurrent document processing
 
+## Known Limitations
+
+- **Configuration-based extractor selection is fixed**: current configuration path uses the simple extractor implementation.  
+  **Mitigation**: use the strategy/extractor constructor when you need ML.NET extraction explicitly.
+- **In-memory processing model**: very large files can increase memory pressure.  
+  **Mitigation**: process in batches or split large documents before ingestion.
+- **Pattern-first parsing**: uncommon document syntaxes may not map perfectly to default rules.  
+  **Mitigation**: provide custom chunking rules for domain-specific formats.
+- **Optional ONNX dependencies**: embedding workflows require additional runtime/model setup outside the base package.  
+  **Mitigation**: follow the ONNX setup guides under `docs/onnx-setup/`.
+
 ## Integration Examples
 
 ### ASP.NET Core Web API
@@ -314,13 +325,8 @@ Test categories:
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes and add tests
-4. Ensure all tests pass: `dotnet test`
-5. Commit your changes: `git commit -m "Add your feature"`
-6. Push to the branch: `git push origin feature/your-feature`
-7. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch protection expectations, required quality checks, and PR workflow.
+See [docs/RELEASE-PROCESS.md](docs/RELEASE-PROCESS.md) for release/changelog process details.
 
 ## License
 
@@ -342,4 +348,3 @@ For questions, issues, or contributions, please:
 ---
 
 **MarkdownStructureChunker** - Intelligent document structure analysis for modern applications.
-

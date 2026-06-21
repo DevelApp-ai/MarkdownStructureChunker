@@ -48,11 +48,11 @@ Deep nesting.";
         // Verify that H1 -> H3 uses HAS_NESTED_SECTION
         var h1 = headingElements.First(h => h.Level == 1);
         var h3 = headingElements.First(h => h.Level == 3);
-        
-        var h1ToH3Edge = edges.FirstOrDefault(e => 
-            e.SourceElementId == h1.Id && 
+
+        var h1ToH3Edge = edges.FirstOrDefault(e =>
+            e.SourceElementId == h1.Id &&
             e.TargetElementId == h3.Id);
-            
+
         Assert.NotNull(h1ToH3Edge);
         Assert.Equal(RelationshipTypes.HAS_NESTED_SECTION, h1ToH3Edge.RelationshipType);
     }
@@ -169,15 +169,15 @@ New chapter.";
         var section12 = headingElements.First(h => h.Content.Contains("Section 1.2"));
 
         // Chapter 1 -> Section 1.1 should be HAS_NESTED_SECTION (H1 -> H3)
-        var chapter1ToSection11 = edges.FirstOrDefault(e => 
-            e.SourceElementId == chapter1.Id && 
+        var chapter1ToSection11 = edges.FirstOrDefault(e =>
+            e.SourceElementId == chapter1.Id &&
             e.TargetElementId == section11.Id);
         Assert.NotNull(chapter1ToSection11);
         Assert.Equal(RelationshipTypes.HAS_NESTED_SECTION, chapter1ToSection11.RelationshipType);
 
         // Chapter 1 -> Section 1.2 should be HAS_SUBSECTION (H1 -> H2)
-        var chapter1ToSection12 = edges.FirstOrDefault(e => 
-            e.SourceElementId == chapter1.Id && 
+        var chapter1ToSection12 = edges.FirstOrDefault(e =>
+            e.SourceElementId == chapter1.Id &&
             e.TargetElementId == section12.Id);
         Assert.NotNull(chapter1ToSection12);
         Assert.Equal(RelationshipTypes.HAS_SUBSECTION, chapter1ToSection12.RelationshipType);
@@ -188,7 +188,7 @@ New chapter.";
     {
         // Test link type classification through the public API instead of reflection
         var strategy = new ASTBasedStrategy();
-        
+
         var markdown = @"# Test Links
 
 [External HTTPS](https://example.com)
@@ -205,7 +205,7 @@ New chapter.";
 
         // Assert - Check that links are properly classified
         var allLinks = elements.SelectMany(e => e.Links).ToList();
-        
+
         Assert.Contains(allLinks, l => l.Type == LinkType.External && l.Url == "https://example.com");
         Assert.Contains(allLinks, l => l.Type == LinkType.External && l.Url == "http://example.com");
         Assert.Contains(allLinks, l => l.Type == LinkType.Email && l.Url == "mailto:test@example.com");
@@ -262,7 +262,7 @@ Check [external site](https://example.com) and [email](mailto:test@example.com).
         // Should detect links
         var allLinks = elements.SelectMany(e => e.Links).ToList();
         Assert.True(allLinks.Count >= 3, $"Should detect at least 3 links, found {allLinks.Count}");
-        
+
         var linkTypes = allLinks.Select(l => l.Type).Distinct().ToList();
         Assert.Contains(LinkType.Internal, linkTypes);
         Assert.Contains(LinkType.External, linkTypes);

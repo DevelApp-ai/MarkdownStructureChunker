@@ -92,11 +92,11 @@ public class OnnxVectorizerTests
 
         // Assert
         Assert.Equal(1024, result.Length);
-        
+
         // Vector should be normalized (magnitude close to 1)
         var magnitude = Math.Sqrt(result.Sum(x => x * x));
         Assert.True(Math.Abs(magnitude - 1.0) < 0.001, $"Vector magnitude {magnitude} should be close to 1.0");
-        
+
         // Should not be all zeros
         Assert.Contains(result, x => x != 0.0f);
     }
@@ -134,7 +134,7 @@ public class OnnxVectorizerTests
 
         // Assert
         Assert.Equal(result1.Length, result2.Length);
-        
+
         // Vectors should be different
         var areDifferent = false;
         for (int i = 0; i < result1.Length; i++)
@@ -162,13 +162,13 @@ public class OnnxVectorizerTests
 
         // Assert
         Assert.Equal(1024, result.Length);
-        
+
         // The vector should be different from the non-prefixed version
         var nonPrefixedResult = await vectorizer.VectorizeAsync(text, !isQuery);
-        
+
         // Verify that the expected prefix logic is working by checking vector differences
         Assert.NotEqual(result, nonPrefixedResult);
-        
+
         // Additional verification that the prefix parameter is used correctly
         var prefixType = expectedPrefix.Trim().TrimEnd(':');
         Assert.Contains(prefixType, new[] { "query", "passage" });

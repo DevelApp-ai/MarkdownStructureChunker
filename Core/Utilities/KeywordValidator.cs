@@ -15,7 +15,7 @@ public static class KeywordValidator
     public static IReadOnlyList<string> ValidateKeywords(IEnumerable<string> keywords)
     {
         var errors = new List<string>();
-        
+
         if (keywords == null)
         {
             errors.Add("Keywords collection cannot be null");
@@ -23,11 +23,11 @@ public static class KeywordValidator
         }
 
         var keywordList = keywords.ToList();
-        
+
         for (int i = 0; i < keywordList.Count; i++)
         {
             var keyword = keywordList[i];
-            
+
             if (string.IsNullOrWhiteSpace(keyword))
             {
                 errors.Add($"Keyword at index {i} is null or empty");
@@ -73,7 +73,7 @@ public static class KeywordValidator
     public static IReadOnlyList<string> ValidateSectionMappings(IReadOnlyDictionary<string, IReadOnlyList<string>> mappings)
     {
         var errors = new List<string>();
-        
+
         if (mappings == null)
         {
             errors.Add("Section mappings cannot be null");
@@ -92,7 +92,7 @@ public static class KeywordValidator
             try
             {
                 var regex = new Regex(mapping.Key, RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
-                
+
                 // Test the regex with a simple string to ensure it works
                 _ = regex.IsMatch("test");
             }
@@ -129,13 +129,13 @@ public static class KeywordValidator
             return null;
 
         var sanitized = keyword.Trim();
-        
+
         // Remove multiple consecutive spaces
         sanitized = Regex.Replace(sanitized, @"\s+", " ");
-        
+
         // Convert to lowercase for consistency
         sanitized = sanitized.ToLowerInvariant();
-        
+
         return sanitized.Length > 0 ? sanitized : null;
     }
 

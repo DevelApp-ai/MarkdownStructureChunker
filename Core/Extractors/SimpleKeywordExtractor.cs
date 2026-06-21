@@ -22,7 +22,7 @@ public class SimpleKeywordExtractor : IKeywordExtractor
 
         // Normalize and tokenize the text
         var words = ExtractWords(content);
-        
+
         // Filter out stop words and short words
         var filteredWords = words
             .Where(word => word.Length >= 3 && !StopWords.IsStopWord(word))
@@ -54,7 +54,7 @@ public class SimpleKeywordExtractor : IKeywordExtractor
         // Use regex to extract words (sequences of letters)
         var wordPattern = new Regex(@"\b[a-zA-Z]+\b", RegexOptions.Compiled);
         var matches = wordPattern.Matches(text);
-        
+
         return matches.Cast<Match>()
             .Select(m => m.Value)
             .ToList();

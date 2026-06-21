@@ -85,6 +85,9 @@ jobs:
       # Use the version calculated by GitVersion
       run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
 
+    - name: Verify formatting
+      run: dotnet format --verify-no-changes
+
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
 
@@ -101,6 +104,28 @@ jobs:
     - name: Pack
       # Creates the NuGet package using the calculated version
       run: dotnet pack ./Core/Core.csproj --no-build --configuration Release -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+
+    - name: Validate package consumption
+      run: |
+        SAMPLE_DIR="${RUNNER_TEMP}/package-consumption-sample"
+        rm -rf "$SAMPLE_DIR"
+        mkdir -p "$SAMPLE_DIR"
+        cd "$SAMPLE_DIR"
+
+        dotnet new console --framework net8.0 --force
+        dotnet add package MarkdownStructureChunker --version "${{ steps.gitversion.outputs.nuGetVersionV2 }}" --source "${GITHUB_WORKSPACE}/artifacts"
+
+        cat > Program.cs <<'EOF'
+        using MarkdownStructureChunker.Core;
+        using System.Linq;
+
+        using var chunker = StructureChunker.CreateStructureFirst();
+        var chunks = await chunker.ChunkAsync("# Sample\nThis is package validation content.");
+        Console.WriteLine(chunks.Count());
+        EOF
+
+        dotnet build --configuration Release
+        dotnet run --configuration Release --no-build
 
     - name: Upload package artifacts
       uses: actions/upload-artifact@v4
@@ -162,8 +187,8 @@ jobs:
           
           ### Technical Details
           - Full .NET 8.0 support with nullable reference types
-          - Comprehensive test suite with 66 test cases
-          - Production-ready with proper error handling and resource management
+          - Comprehensive automated test suite (248 tests currently)
+          - Robust error handling and resource management
           - SourceLink enabled for debugging transparency
           - Apache 2.0 licensed
           
@@ -175,4 +200,3 @@ jobs:
           ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.snupkg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

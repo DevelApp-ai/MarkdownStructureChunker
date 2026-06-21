@@ -122,7 +122,7 @@ public class StructureChunkerConfigurationTests
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Chunks);
-        
+
         // All chunks should have empty keyword lists
         Assert.All(result.Chunks, chunk => Assert.Empty(chunk.Keywords));
     }
@@ -145,9 +145,53 @@ public class StructureChunkerConfigurationTests
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Chunks);
-        
+
         // All chunks should have at most 2 keywords
         Assert.All(result.Chunks, chunk => Assert.True(chunk.Keywords.Count <= 2));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithMaxKeywordsAboveDefault_UsesConfiguredLimitForExtraction()
+    {
+        // Arrange
+        var config = new ChunkerConfiguration
+        {
+            ExtractKeywords = true,
+            MaxKeywordsPerChunk = 15
+        };
+        using var chunker = new StructureChunker(config);
+        var content = "# Title\narchitecture scalability observability resiliency throughput latency consistency durability security compliance governance orchestration instrumentation analytics optimization portability maintainability.";
+
+        // Act
+        var result = await chunker.ProcessAsync(content, "test-doc");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Chunks);
+        Assert.Equal(15, result.Chunks.First().Keywords.Count);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithMaxChunkSizeInConfiguration_AppliesConfiguredChunkSplitting()
+    {
+        // Arrange
+        var config = new ChunkerConfiguration
+        {
+            MaxChunkSize = 100,
+            MinChunkSize = 50,
+            ChunkOverlap = 20,
+            SplitOnSentences = false
+        };
+        using var chunker = new StructureChunker(config);
+        var longContent = string.Join(" ", Enumerable.Repeat("word", 80));
+        var content = $"# Title\n{longContent}";
+
+        // Act
+        var result = await chunker.ProcessAsync(content, "test-doc");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Chunks.Count > 1);
     }
 
     [Fact]
@@ -273,4 +317,3 @@ public class StructureChunkerConfigurationTests
         Assert.NotEmpty(result.Chunks);
     }
 }
-

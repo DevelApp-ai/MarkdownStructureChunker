@@ -67,8 +67,8 @@ public class ChunkerConfigurationTests
     public void Validate_MinChunkSizeGreaterThanMaxChunkSize_ThrowsArgumentException()
     {
         // Arrange
-        var config = new ChunkerConfiguration 
-        { 
+        var config = new ChunkerConfiguration
+        {
             MaxChunkSize = 500,
             MinChunkSize = 600
         };
@@ -93,8 +93,8 @@ public class ChunkerConfigurationTests
     public void Validate_ChunkOverlapGreaterThanMaxChunkSize_ThrowsArgumentException()
     {
         // Arrange
-        var config = new ChunkerConfiguration 
-        { 
+        var config = new ChunkerConfiguration
+        {
             MaxChunkSize = 500,
             ChunkOverlap = 600
         };
@@ -189,9 +189,9 @@ public class ChunkerConfigurationTests
     [InlineData(2000, 400, 200, 15)]
     [InlineData(500, 50, 50, 5)]
     public void Validate_ValidParameterCombinations_DoesNotThrow(
-        int maxChunkSize, 
-        int chunkOverlap, 
-        int minChunkSize, 
+        int maxChunkSize,
+        int chunkOverlap,
+        int minChunkSize,
         int maxKeywords)
     {
         // Arrange

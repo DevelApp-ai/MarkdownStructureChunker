@@ -16,8 +16,8 @@ public static class ChunkNodeExtensions
     /// <param name="minimumSharedKeywords">Minimum number of shared keywords required</param>
     /// <returns>Chunks that share keywords with the source chunk</returns>
     public static IEnumerable<ChunkNode> FindRelatedByKeywords(
-        this ChunkNode chunk, 
-        IEnumerable<ChunkNode> otherChunks, 
+        this ChunkNode chunk,
+        IEnumerable<ChunkNode> otherChunks,
         int minimumSharedKeywords = 1)
     {
         if (chunk.Keywords == null || !chunk.Keywords.Any())
@@ -43,7 +43,7 @@ public static class ChunkNodeExtensions
     /// <returns>Similarity score between 0.0 and 1.0</returns>
     public static double CalculateKeywordSimilarity(this ChunkNode chunk, ChunkNode other)
     {
-        if (chunk.Keywords == null || other.Keywords == null || 
+        if (chunk.Keywords == null || other.Keywords == null ||
             !chunk.Keywords.Any() || !other.Keywords.Any())
             return 0.0;
 
@@ -108,7 +108,7 @@ public static class ChunkNodeExtensions
     /// <param name="minimumSharedKeywords">Minimum number of shared keywords for grouping</param>
     /// <returns>Groups of chunks that share keywords</returns>
     public static IEnumerable<IGrouping<string, ChunkNode>> GroupBySharedKeywords(
-        this IEnumerable<ChunkNode> chunks, 
+        this IEnumerable<ChunkNode> chunks,
         int minimumSharedKeywords = 2)
     {
         var chunkList = chunks.ToList();
@@ -121,10 +121,10 @@ public static class ChunkNodeExtensions
 
             // Create a signature from sorted keywords
             var signature = string.Join("|", chunk.Keywords.OrderBy(k => k, StringComparer.OrdinalIgnoreCase));
-            
+
             if (!groups.ContainsKey(signature))
                 groups[signature] = new List<ChunkNode>();
-            
+
             groups[signature].Add(chunk);
         }
 
@@ -140,7 +140,7 @@ public static class ChunkNodeExtensions
     /// <param name="topCount">Number of top keywords to return</param>
     /// <returns>The most frequently occurring keywords</returns>
     public static IReadOnlyList<(string Keyword, int Frequency)> GetTopKeywords(
-        this IEnumerable<ChunkNode> chunks, 
+        this IEnumerable<ChunkNode> chunks,
         int topCount = 10)
     {
         return chunks
@@ -173,13 +173,13 @@ public static class ChunkNodeExtensions
             {
                 if (!index.ContainsKey(keyword))
                     index[keyword] = new List<ChunkNode>();
-                
+
                 index[keyword].Add(chunk);
             }
         }
 
         return index.ToDictionary(
-            kvp => kvp.Key, 
+            kvp => kvp.Key,
             kvp => (IReadOnlyList<ChunkNode>)kvp.Value,
             StringComparer.OrdinalIgnoreCase);
     }
