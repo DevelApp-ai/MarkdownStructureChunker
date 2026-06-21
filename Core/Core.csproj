@@ -58,7 +58,7 @@
     <PackageReference Include="Markdig" Version="1.3.2" />
     
     <!-- SourceLink for Source Code Transparency -->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
