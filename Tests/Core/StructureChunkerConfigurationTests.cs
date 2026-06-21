@@ -151,6 +151,27 @@ public class StructureChunkerConfigurationTests
     }
 
     [Fact]
+    public async Task ProcessAsync_WithMaxKeywordsAboveDefault_UsesConfiguredLimitForExtraction()
+    {
+        // Arrange
+        var config = new ChunkerConfiguration
+        {
+            ExtractKeywords = true,
+            MaxKeywordsPerChunk = 15
+        };
+        using var chunker = new StructureChunker(config);
+        var content = "# Title\narchitecture scalability observability resiliency throughput latency consistency durability security compliance governance orchestration instrumentation analytics optimization portability maintainability.";
+
+        // Act
+        var result = await chunker.ProcessAsync(content, "test-doc");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Chunks);
+        Assert.Equal(15, result.Chunks.First().Keywords.Count);
+    }
+
+    [Fact]
     public void Configuration_WithLegacyConstructor_ReturnsNull()
     {
         // Arrange
@@ -273,4 +294,3 @@ public class StructureChunkerConfigurationTests
         Assert.NotEmpty(result.Chunks);
     }
 }
-

@@ -323,7 +323,9 @@ public class StructureChunker : IDisposable
         }
 
         // 4. Extract keywords from content
-        var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(chunk.Content);
+        var extractedKeywords = await _keywordExtractor.ExtractKeywordsAsync(
+            chunk.Content,
+            _configuration?.MaxKeywordsPerChunk ?? 10);
 
         // 5. Combine and prioritize keywords
         List<string> finalKeywords;
@@ -380,4 +382,3 @@ public class StructureChunker : IDisposable
         }
     }
 }
-
