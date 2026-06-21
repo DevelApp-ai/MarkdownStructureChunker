@@ -25,7 +25,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0 # Fetches all history for GitVersion
 
@@ -74,7 +74,7 @@ jobs:
         echo "CommitDate: ${{ steps.gitversion.outputs.commitDate }}"
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -170,7 +170,7 @@ jobs:
     - name: Create GitHub Release
       # Create a GitHub release for stable versions on main branch only (non-pre-release only)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: v${{ steps.gitversion.outputs.semVer }}
         name: Release v${{ steps.gitversion.outputs.semVer }}
