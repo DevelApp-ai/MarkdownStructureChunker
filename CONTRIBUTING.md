@@ -15,6 +15,20 @@ Every pull request should pass:
 - `dotnet format --verify-no-changes`
 - `dotnet test --configuration Release --no-build`
 
+## API compatibility and versioning policy
+
+- NuGet package versions follow Semantic Versioning (`MAJOR.MINOR.PATCH`).
+- `PATCH`: bug fixes and internal changes with no public API changes.
+- `MINOR`: backwards-compatible API additions.
+- `MAJOR`: breaking API changes.
+- Any public API removal or signature change must be documented in PR notes and release notes.
+
+## Dependency and vulnerability monitoring policy
+
+- Dependabot is configured for NuGet and GitHub Actions updates on a weekly cadence.
+- Security updates should be triaged promptly and merged as soon as validation passes.
+- Routine dependency updates should be reviewed at least weekly.
+
 ## Pull request workflow
 
 1. Create a feature branch from `main`.

@@ -26,8 +26,8 @@
 
 ### P1 (high-value hardening)
 - [ ] Add coverage reporting and decide a minimum acceptable threshold.
-- [ ] Add API compatibility/versioning policy for NuGet consumers.
-- [ ] Add dependency/vulnerability monitoring policy and cadence.
+- [x] Add API compatibility/versioning policy for NuGet consumers.
+- [x] Add dependency/vulnerability monitoring policy and cadence.
 - [ ] Validate package consumption from a clean sample project in CI.
 
 ### P2 (operational maturity)
