@@ -172,6 +172,29 @@ public class StructureChunkerConfigurationTests
     }
 
     [Fact]
+    public async Task ProcessAsync_WithMaxChunkSizeInConfiguration_AppliesConfiguredChunkSplitting()
+    {
+        // Arrange
+        var config = new ChunkerConfiguration
+        {
+            MaxChunkSize = 100,
+            MinChunkSize = 50,
+            ChunkOverlap = 20,
+            SplitOnSentences = false
+        };
+        using var chunker = new StructureChunker(config);
+        var longContent = string.Join(" ", Enumerable.Repeat("word", 80));
+        var content = $"# Title\n{longContent}";
+
+        // Act
+        var result = await chunker.ProcessAsync(content, "test-doc");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Chunks.Count > 1);
+    }
+
+    [Fact]
     public void Configuration_WithLegacyConstructor_ReturnsNull()
     {
         // Arrange

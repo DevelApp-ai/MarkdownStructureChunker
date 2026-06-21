@@ -57,9 +57,8 @@ public class StructureChunker : IDisposable
     {
         var rules = PatternBasedStrategy.CreateDefaultRules();
 
-        // TODO: In future versions, we could create different strategies based on config
-        // For now, we use the PatternBasedStrategy with default rules
-        return new PatternBasedStrategy(rules);
+        // TODO: In future versions, we could create different strategy types based on config
+        return new PatternBasedStrategy(rules, config);
     }
 
     /// <summary>
