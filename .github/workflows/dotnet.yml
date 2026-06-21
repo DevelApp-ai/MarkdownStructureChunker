@@ -30,13 +30,13 @@ jobs:
         fetch-depth: 0 # Fetches all history for GitVersion
 
     - name: Install GitVersion
-      uses: gittools/actions/gitversion/setup@v1.1.1
+      uses: gittools/actions/gitversion/setup@v4.5.0
       with:
         versionSpec: '5.x'
 
     - name: Determine Version
       id: gitversion # The output of this step is used later
-      uses: gittools/actions/gitversion/execute@v1.1.1
+      uses: gittools/actions/gitversion/execute@v4.5.0
 
     - name: Display GitVersion outputs
       run: |
