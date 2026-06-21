@@ -31,10 +31,10 @@
 - [x] Validate package consumption from a clean sample project in CI.
 
 ### P2 (operational maturity)
-- [ ] Add support/SLA and issue triage expectations.
-- [ ] Add changelog/release process documentation.
+- [x] Add support/SLA and issue triage expectations.
+- [x] Add changelog/release process documentation.
 - [ ] Add performance baseline benchmarks for representative document sizes.
-- [ ] Add “known limitations” section with mitigation guidance.
+- [x] Add “known limitations” section with mitigation guidance.
 
 ## Verification snapshot (this branch)
 - `dotnet build --configuration Release --no-restore` ✅

@@ -36,3 +36,18 @@ Every pull request should pass:
 3. Run the required quality gate locally.
 4. Open a pull request and request review.
 5. Merge only after required checks and approvals pass.
+
+## Support and triage expectations
+
+- Community support is provided via GitHub issues and pull requests.
+- Response targets for new issues:
+  - Acknowledgement/triage: within 3 business days
+  - Initial maintainer assessment (bug/feature/question): within 5 business days
+- Priority guidance:
+  - Critical regressions/security issues: same day triage when possible
+  - Functional bugs: high priority in the next maintenance cycle
+  - Documentation/questions: best effort
+- Every issue should be labeled at triage with at least:
+  - `type` (bug/feature/question/docs)
+  - `priority` (P0/P1/P2)
+  - `status` (needs-info/ready/in-progress)

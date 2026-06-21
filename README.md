@@ -207,6 +207,17 @@ var advancedKeywords = await mlExtractor.ExtractKeywordsAsync(text, maxKeywords:
 - **ONNX Model Loading**: Loading the multilingual-e5-large model requires ~500MB RAM and 2-3 seconds initialization
 - **Concurrent Processing**: All components are thread-safe and support concurrent document processing
 
+## Known Limitations
+
+- **Configuration-based extractor selection is fixed**: current configuration path uses the simple extractor implementation.  
+  **Mitigation**: use the strategy/extractor constructor when you need ML.NET extraction explicitly.
+- **In-memory processing model**: very large files can increase memory pressure.  
+  **Mitigation**: process in batches or split large documents before ingestion.
+- **Pattern-first parsing**: uncommon document syntaxes may not map perfectly to default rules.  
+  **Mitigation**: provide custom chunking rules for domain-specific formats.
+- **Optional ONNX dependencies**: embedding workflows require additional runtime/model setup outside the base package.  
+  **Mitigation**: follow the ONNX setup guides under `docs/onnx-setup/`.
+
 ## Integration Examples
 
 ### ASP.NET Core Web API
@@ -315,6 +326,7 @@ Test categories:
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch protection expectations, required quality checks, and PR workflow.
+See [docs/RELEASE-PROCESS.md](docs/RELEASE-PROCESS.md) for release/changelog process details.
 
 ## License
 
@@ -336,4 +348,3 @@ For questions, issues, or contributions, please:
 ---
 
 **MarkdownStructureChunker** - Intelligent document structure analysis for modern applications.
-
