@@ -32,7 +32,7 @@ jobs:
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v4.5.0
       with:
-        versionSpec: '5.x'
+        versionSpec: '6.x'
 
     - name: Determine Version
       id: gitversion # The output of this step is used later
