@@ -103,7 +103,7 @@ jobs:
 
     - name: Pack
       # Creates the NuGet package using the calculated version
-      run: dotnet pack ./Core/Core.csproj --no-build --configuration Release -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+      run: dotnet pack ./Core/Core.csproj --no-build --configuration Release -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.semVer }} /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
 
     - name: Validate package consumption
       run: |
@@ -113,7 +113,7 @@ jobs:
         cd "$SAMPLE_DIR"
 
         dotnet new console --framework net8.0 --force
-        dotnet add package MarkdownStructureChunker --version "${{ steps.gitversion.outputs.nuGetVersionV2 }}" --source "${GITHUB_WORKSPACE}/artifacts"
+        dotnet add package MarkdownStructureChunker --version "${{ steps.gitversion.outputs.semVer }}" --source "${GITHUB_WORKSPACE}/artifacts"
 
         cat > Program.cs <<'EOF'
         using MarkdownStructureChunker.Core;
@@ -170,7 +170,7 @@ jobs:
 
     - name: Create GitHub Release
       # Create a GitHub release for stable versions on main branch only (non-pre-release only)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(steps.gitversion.outputs.nuGetVersionV2, '-')
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(steps.gitversion.outputs.semVer, '-')
       uses: softprops/action-gh-release@v3
       with:
         tag_name: v${{ steps.gitversion.outputs.semVer }}
@@ -197,7 +197,7 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.nupkg
-          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.snupkg
+          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.semVer }}.nupkg
+          ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.semVer }}.snupkg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
