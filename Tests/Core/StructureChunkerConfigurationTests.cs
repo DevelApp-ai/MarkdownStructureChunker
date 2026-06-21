@@ -122,7 +122,7 @@ public class StructureChunkerConfigurationTests
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Chunks);
-        
+
         // All chunks should have empty keyword lists
         Assert.All(result.Chunks, chunk => Assert.Empty(chunk.Keywords));
     }
@@ -145,7 +145,7 @@ public class StructureChunkerConfigurationTests
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Chunks);
-        
+
         // All chunks should have at most 2 keywords
         Assert.All(result.Chunks, chunk => Assert.True(chunk.Keywords.Count <= 2));
     }

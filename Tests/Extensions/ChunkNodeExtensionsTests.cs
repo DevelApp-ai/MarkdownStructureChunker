@@ -28,7 +28,7 @@ public class ChunkNodeExtensionsTests
         var relatedChunk1 = CreateChunk("Related1", "api", "web", "service");
         var relatedChunk2 = CreateChunk("Related2", "rest", "http", "protocol");
         var unrelatedChunk = CreateChunk("Unrelated", "database", "sql", "schema");
-        
+
         var otherChunks = new[] { relatedChunk1, relatedChunk2, unrelatedChunk };
 
         // Act
@@ -48,7 +48,7 @@ public class ChunkNodeExtensionsTests
         var sourceChunk = CreateChunk("Source", "api", "rest", "endpoint");
         var oneSharedChunk = CreateChunk("OneShared", "api", "database", "sql");
         var twoSharedChunk = CreateChunk("TwoShared", "api", "rest", "web");
-        
+
         var otherChunks = new[] { oneSharedChunk, twoSharedChunk };
 
         // Act
@@ -66,7 +66,7 @@ public class ChunkNodeExtensionsTests
         // Arrange
         var sourceChunk = CreateChunk("Source");
         var otherChunk = CreateChunk("Other", "api", "rest");
-        
+
         var otherChunks = new[] { otherChunk };
 
         // Act
@@ -297,17 +297,17 @@ public class ChunkNodeExtensionsTests
 
         // Assert
         Assert.Equal(4, index.Count);
-        
+
         Assert.Equal(2, index["api"].Count);
         Assert.Contains(chunk1, index["api"]);
         Assert.Contains(chunk2, index["api"]);
-        
+
         Assert.Single(index["rest"]);
         Assert.Contains(chunk1, index["rest"]);
-        
+
         Assert.Single(index["web"]);
         Assert.Contains(chunk2, index["web"]);
-        
+
         Assert.Single(index["database"]);
         Assert.Contains(chunk3, index["database"]);
     }
@@ -344,7 +344,7 @@ public class ChunkNodeExtensionsTests
 
         // Assert
         Assert.Equal(2, groups.Count);
-        
+
         // Each group should have 2 chunks
         Assert.All(groups, group => Assert.Equal(2, group.Count()));
     }

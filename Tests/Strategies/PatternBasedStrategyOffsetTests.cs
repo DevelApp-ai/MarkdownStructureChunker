@@ -18,7 +18,7 @@ public class PatternBasedStrategyOffsetTests
             PreserveOriginalMarkdown = false
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# First Heading\nSome content here.\n## Second Heading\nMore content.";
 
         // Act
@@ -26,17 +26,17 @@ public class PatternBasedStrategyOffsetTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var firstChunk = chunks.FirstOrDefault(c => c.CleanTitle == "First Heading");
         var secondChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Second Heading");
-        
+
         Assert.NotNull(firstChunk);
         Assert.NotNull(secondChunk);
-        
+
         // First chunk should start at the beginning
         Assert.Equal(0, firstChunk.StartOffset);
         Assert.True(firstChunk.EndOffset > firstChunk.StartOffset);
-        
+
         // Second chunk should start after the first
         Assert.True(secondChunk.StartOffset > firstChunk.StartOffset);
         Assert.True(secondChunk.EndOffset > secondChunk.StartOffset);
@@ -53,7 +53,7 @@ public class PatternBasedStrategyOffsetTests
             CalculateOffsets = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Main Title\nThis is **bold** text with *italic* formatting.\n## Subtitle\nMore content.";
 
         // Act
@@ -61,7 +61,7 @@ public class PatternBasedStrategyOffsetTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var mainChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Main Title");
         Assert.NotNull(mainChunk);
         Assert.NotNull(mainChunk.OriginalMarkdown);
@@ -78,7 +78,7 @@ public class PatternBasedStrategyOffsetTests
             PreserveOriginalMarkdown = false
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\nContent here.";
 
         // Act
@@ -99,7 +99,7 @@ public class PatternBasedStrategyOffsetTests
             IncludeHeadingHierarchy = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Chapter 1
 Content for chapter 1.
 ## Section 1.1
@@ -114,30 +114,30 @@ Content for section 1.2.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var chapter = chunks.FirstOrDefault(c => c.CleanTitle == "Chapter 1");
         var section11 = chunks.FirstOrDefault(c => c.CleanTitle == "Section 1.1");
         var subsection = chunks.FirstOrDefault(c => c.CleanTitle == "Subsection 1.1.1");
         var section12 = chunks.FirstOrDefault(c => c.CleanTitle == "Section 1.2");
-        
+
         Assert.NotNull(chapter);
         Assert.NotNull(section11);
         Assert.NotNull(subsection);
         Assert.NotNull(section12);
-        
+
         // Check heading hierarchy
         Assert.Single(chapter.HeadingHierarchy);
         Assert.Equal("Chapter 1", chapter.HeadingHierarchy.First());
-        
+
         Assert.Equal(2, section11.HeadingHierarchy.Count());
         Assert.Equal("Chapter 1", section11.HeadingHierarchy.First());
         Assert.Equal("Section 1.1", section11.HeadingHierarchy.Skip(1).First());
-        
+
         Assert.Equal(3, subsection.HeadingHierarchy.Count());
         Assert.Equal("Chapter 1", subsection.HeadingHierarchy.First());
         Assert.Equal("Section 1.1", subsection.HeadingHierarchy.Skip(1).First());
         Assert.Equal("Subsection 1.1.1", subsection.HeadingHierarchy.Skip(2).First());
-        
+
         Assert.Equal(2, section12.HeadingHierarchy.Count());
         Assert.Equal("Chapter 1", section12.HeadingHierarchy.First());
         Assert.Equal("Section 1.2", section12.HeadingHierarchy.Skip(1).First());
@@ -150,7 +150,7 @@ Content for section 1.2.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Level 1
 Content
 ## Level 2
@@ -163,19 +163,19 @@ Content";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var level1 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 1");
         var level2 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 2");
         var level3 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 3");
-        
+
         Assert.NotNull(level1);
         Assert.NotNull(level2);
         Assert.NotNull(level3);
-        
+
         Assert.Equal(1, level1.SectionLevel);
         Assert.Equal(2, level2.SectionLevel);
         Assert.Equal(3, level3.SectionLevel);
-        
+
         Assert.True(level1.IsHeading);
         Assert.True(level2.IsHeading);
         Assert.True(level3.IsHeading);
@@ -188,7 +188,7 @@ Content";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Main Chapter
 Chapter content.
 ## First Section
@@ -203,17 +203,17 @@ More section content.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var mainChapter = chunks.FirstOrDefault(c => c.CleanTitle == "Main Chapter");
         var firstSection = chunks.FirstOrDefault(c => c.CleanTitle == "First Section");
         var subsection = chunks.FirstOrDefault(c => c.CleanTitle == "Subsection");
         var secondSection = chunks.FirstOrDefault(c => c.CleanTitle == "Second Section");
-        
+
         Assert.NotNull(mainChapter);
         Assert.NotNull(firstSection);
         Assert.NotNull(subsection);
         Assert.NotNull(secondSection);
-        
+
         // Check parent headings
         Assert.Equal(string.Empty, mainChapter.ParentHeading); // Top level has no parent
         Assert.Equal("Main Chapter", firstSection.ParentHeading);
@@ -228,7 +228,7 @@ More section content.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Heading
 Regular content here.
 ## Another Heading
@@ -239,13 +239,13 @@ More content.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var headingChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Heading");
         var anotherHeadingChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Another Heading");
-        
+
         Assert.NotNull(headingChunk);
         Assert.NotNull(anotherHeadingChunk);
-        
+
         Assert.Equal(ChunkType.Header, headingChunk.ChunkTypeEnum);
         Assert.Equal(ChunkType.Header, anotherHeadingChunk.ChunkTypeEnum);
     }
@@ -261,7 +261,7 @@ More content.";
             PreserveOriginalMarkdown = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Introduction
 This is the introduction paragraph.
 
@@ -279,18 +279,18 @@ This section describes the methodology.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         // Verify that offsets are sequential and non-overlapping
         var sortedChunks = chunks.OrderBy(c => c.StartOffset).ToList();
-        
+
         for (int i = 0; i < sortedChunks.Count - 1; i++)
         {
             var currentChunk = sortedChunks[i];
             var nextChunk = sortedChunks[i + 1];
-            
-            Assert.True(currentChunk.StartOffset < currentChunk.EndOffset, 
+
+            Assert.True(currentChunk.StartOffset < currentChunk.EndOffset,
                 $"Chunk '{currentChunk.CleanTitle}' should have start < end");
-            Assert.True(currentChunk.EndOffset <= nextChunk.StartOffset, 
+            Assert.True(currentChunk.EndOffset <= nextChunk.StartOffset,
                 $"Chunk '{currentChunk.CleanTitle}' should not overlap with '{nextChunk.CleanTitle}'");
         }
     }
@@ -305,7 +305,7 @@ This section describes the methodology.";
             CalculateOffsets = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\n\n\nContent with empty lines.\n\n## Another Title\n\nMore content.";
 
         // Act
@@ -313,13 +313,13 @@ This section describes the methodology.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var firstChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Title");
         var secondChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Another Title");
-        
+
         Assert.NotNull(firstChunk);
         Assert.NotNull(secondChunk);
-        
+
         Assert.True(firstChunk.StartOffset >= 0);
         Assert.True(firstChunk.EndOffset > firstChunk.StartOffset);
         Assert.True(secondChunk.StartOffset >= firstChunk.EndOffset);
@@ -337,7 +337,7 @@ This section describes the methodology.";
             PreserveOriginalMarkdown = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Título con acentos\nContenido con émojis 🚀 y símbolos @#$%.\n## Другой заголовок\nТекст на кириллице.";
 
         // Act
@@ -345,18 +345,18 @@ This section describes the methodology.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var firstChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Título con acentos");
         var secondChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Другой заголовок");
-        
+
         Assert.NotNull(firstChunk);
         Assert.NotNull(secondChunk);
-        
+
         Assert.True(firstChunk.StartOffset >= 0);
         Assert.True(firstChunk.EndOffset > firstChunk.StartOffset);
         Assert.True(secondChunk.StartOffset > firstChunk.StartOffset);
         Assert.True(secondChunk.EndOffset > secondChunk.StartOffset);
-        
+
         // Verify original markdown preservation with special characters
         Assert.NotNull(firstChunk.OriginalMarkdown);
         Assert.Contains("Título con acentos", firstChunk.OriginalMarkdown);
@@ -374,7 +374,7 @@ This section describes the methodology.";
             CalculateOffsets = calculateOffsets
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\nContent here.";
 
         // Act
@@ -382,7 +382,7 @@ This section describes the methodology.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var chunk = chunks.First();
         if (calculateOffsets)
         {

@@ -44,7 +44,7 @@ public class PatternBasedStrategyConfigurationTests
             SplitOnSentences = false
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var longContent = string.Join(" ", Enumerable.Repeat("word", 50)); // ~200 characters
         var text = $"# Title\n{longContent}";
 
@@ -53,14 +53,14 @@ public class PatternBasedStrategyConfigurationTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         // Should have split the content into multiple chunks
         var contentChunks = chunks.Where(c => !string.IsNullOrEmpty(c.Content)).ToList();
         Assert.True(contentChunks.Count > 1, "Large content should be split into multiple chunks");
-        
+
         // Each chunk should respect the size limit (allowing some tolerance for splitting logic)
-        Assert.All(contentChunks, chunk => 
-            Assert.True(chunk.Content!.Length <= config.MaxChunkSize + 50, 
+        Assert.All(contentChunks, chunk =>
+            Assert.True(chunk.Content!.Length <= config.MaxChunkSize + 50,
                 $"Chunk content length {chunk.Content!.Length} should be close to max size {config.MaxChunkSize}"));
     }
 
@@ -75,7 +75,7 @@ public class PatternBasedStrategyConfigurationTests
             SplitOnSentences = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\nThis is sentence one. This is sentence two. This is sentence three.";
 
         // Act
@@ -83,7 +83,7 @@ public class PatternBasedStrategyConfigurationTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var contentChunks = chunks.Where(c => !string.IsNullOrEmpty(c.Content)).ToList();
         Assert.True(contentChunks.Count > 1, "Content should be split into multiple chunks");
     }
@@ -100,7 +100,7 @@ public class PatternBasedStrategyConfigurationTests
             SplitOnSentences = false
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var longContent = string.Join(" ", Enumerable.Repeat("word", 50));
         var text = $"# Title\n{longContent}";
 
@@ -109,7 +109,7 @@ public class PatternBasedStrategyConfigurationTests
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var contentChunks = chunks.Where(c => !string.IsNullOrEmpty(c.Content)).ToList();
         if (contentChunks.Count > 1)
         {
@@ -118,7 +118,7 @@ public class PatternBasedStrategyConfigurationTests
             {
                 var currentChunk = contentChunks[i];
                 var previousChunk = contentChunks[i - 1];
-                
+
                 // The current chunk should contain some content from the previous chunk
                 Assert.True(currentChunk.Content!.Length > 0, "Chunk should have content");
             }
@@ -131,7 +131,7 @@ public class PatternBasedStrategyConfigurationTests
         // Arrange
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var strategy = new PatternBasedStrategy(rules); // No configuration
-        
+
         var text = "# Title\nSome content here.";
 
         // Act
@@ -154,7 +154,7 @@ public class PatternBasedStrategyConfigurationTests
             MaxChunkSize = 50
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Main Title
 Some content.
 ## Subtitle
@@ -166,10 +166,10 @@ More content here.";
         // Assert
         Assert.NotEmpty(chunks);
         Assert.True(chunks.Count >= 2, "Should have multiple chunks for different heading levels");
-        
+
         var mainTitle = chunks.FirstOrDefault(c => c.CleanTitle == "Main Title");
         var subtitle = chunks.FirstOrDefault(c => c.CleanTitle == "Subtitle");
-        
+
         Assert.NotNull(mainTitle);
         Assert.NotNull(subtitle);
         Assert.Equal(1, mainTitle.Level);
@@ -187,7 +187,7 @@ More content here.";
             PreserveStructure = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\nShort.";
 
         // Act
@@ -212,7 +212,7 @@ More content here.";
             SplitOnSentences = splitOnSentences
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "# Title\nFirst sentence. Second sentence. Third sentence.";
 
         // Act
@@ -220,7 +220,7 @@ More content here.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         // The splitting behavior should be different based on the configuration
         var contentChunks = chunks.Where(c => !string.IsNullOrEmpty(c.Content)).ToList();
         Assert.True(contentChunks.Any(), "Should have content chunks");
@@ -233,7 +233,7 @@ More content here.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateForLargeDocuments();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         // Create a large document
         var sections = Enumerable.Range(1, 10)
             .Select(i => $"# Section {i}\n{string.Join(" ", Enumerable.Repeat($"Content for section {i}.", 100))}")
@@ -295,7 +295,7 @@ More content here.";
             PreserveStructure = true
         };
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Main Title
 This is the introduction paragraph with multiple sentences. It contains enough content to test the chunking behavior. The sentences should be split appropriately.
 
@@ -307,11 +307,11 @@ This subsection has its own content. It also contains multiple sentences for tes
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         // Verify chunk structure is maintained
         var titleChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Main Title");
         var subsectionChunk = chunks.FirstOrDefault(c => c.CleanTitle == "Subsection");
-        
+
         Assert.NotNull(titleChunk);
         Assert.NotNull(subsectionChunk);
         Assert.True(titleChunk.Level < subsectionChunk.Level, "Hierarchy should be preserved");

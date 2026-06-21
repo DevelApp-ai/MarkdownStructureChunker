@@ -57,17 +57,17 @@ public class SimpleKeywordExtractorTests
         // Assert
         Assert.NotEmpty(result);
         Assert.True(result.Count <= 5);
-        
+
         // Should not contain stop words
         Assert.DoesNotContain("this", result);
         Assert.DoesNotContain("is", result);
         Assert.DoesNotContain("a", result);
         Assert.DoesNotContain("with", result);
         Assert.DoesNotContain("and", result);
-        
+
         // Should contain meaningful words (but exact words may vary due to processing)
         var meaningfulWords = new[] { "simple", "test", "document", "important", "keywords", "concepts" };
-        Assert.True(result.Intersect(meaningfulWords).Count() >= 3, 
+        Assert.True(result.Intersect(meaningfulWords).Count() >= 3,
             $"Expected at least 3 meaningful words, got: {string.Join(", ", result)}");
     }
 
@@ -83,11 +83,11 @@ public class SimpleKeywordExtractorTests
 
         // Assert
         Assert.NotEmpty(result);
-        
+
         // "machine" and "learning" should be top keywords due to frequency
         Assert.Contains("machine", result);
         Assert.Contains("learning", result);
-        
+
         // The first keyword should be one of the most frequent
         Assert.True(result[0] == "machine" || result[0] == "learning");
     }
@@ -106,12 +106,12 @@ public class SimpleKeywordExtractorTests
 
         // Assert
         Assert.NotEmpty(result);
-        
+
         // Should extract technical terms (but exact terms may vary)
         var technicalTerms = new[] { "neural", "network", "layers", "model", "architecture", "backpropagation" };
         Assert.True(result.Intersect(technicalTerms).Count() >= 3,
             $"Expected at least 3 technical terms from {string.Join(", ", technicalTerms)}, got: {string.Join(", ", result)}");
-        
+
         // Should not contain common words
         Assert.DoesNotContain("the", result);
         Assert.DoesNotContain("and", result);
@@ -144,12 +144,12 @@ public class SimpleKeywordExtractorTests
 
         // Assert
         Assert.NotEmpty(result);
-        
+
         // Should not contain words shorter than 3 characters
         Assert.DoesNotContain("a", result);
         Assert.DoesNotContain("on", result);
         Assert.DoesNotContain("it", result);
-        
+
         // Should contain longer words (but exact set may vary)
         var expectedWords = new[] { "big", "cat", "sat", "mat", "was", "fat" };
         Assert.True(result.Intersect(expectedWords).Count() >= 4,
@@ -185,7 +185,7 @@ public class MLNetKeywordExtractorTests
         // Assert
         Assert.NotEmpty(result);
         Assert.True(result.Count <= 5);
-        
+
         // Should extract meaningful terms
         Assert.Contains("machine", result);
         Assert.Contains("learning", result);
@@ -207,7 +207,7 @@ public class MLNetKeywordExtractorTests
 
         // Assert
         Assert.NotEmpty(result);
-        
+
         // Should extract some technical terms (but not necessarily all specific ones)
         Assert.Contains(result, k => k.Contains("attention") || k.Contains("model") || k.Contains("architecture"));
     }

@@ -19,7 +19,7 @@ public class StructureFirstTests
 
         // Assert
         Assert.NotNull(chunker);
-        
+
         // The chunker should be configured properly
         var result = chunker.Process("# Test\n\nContent", "test-doc");
         Assert.NotNull(result);
@@ -53,31 +53,31 @@ Our approach involves several key steps.";
         // Assert
         Assert.NotNull(result);
         Assert.Equal("test-doc", result.SourceId);
-        
+
         // Should have traditional chunks for backward compatibility
         Assert.NotEmpty(result.Chunks);
-        
+
         // Should have structural elements from AST parsing
         Assert.True(result.HasStructuralGraph);
         Assert.NotEmpty(result.StructuralElements);
         Assert.NotEmpty(result.StructuralEdges);
-        
+
         // Verify structural elements
         var headingElements = result.StructuralElements.Where(e => e.ElementType == "heading").ToList();
         Assert.True(headingElements.Count >= 4); // h1, h2, h3, h2
-        
+
         // Verify hierarchical relationships
         var h1 = headingElements.FirstOrDefault(h => h.Level == 1);
         var h2Elements = headingElements.Where(h => h.Level == 2).ToList();
         var h3 = headingElements.FirstOrDefault(h => h.Level == 3);
-        
+
         Assert.NotNull(h1);
         Assert.True(h2Elements.Count >= 2);
         Assert.NotNull(h3);
-        
+
         // Verify relationships exist
-        Assert.Contains(result.StructuralEdges, e => 
-            e.SourceElementId == h1.Id && 
+        Assert.Contains(result.StructuralEdges, e =>
+            e.SourceElementId == h1.Id &&
             h2Elements.Any(h2 => h2.Id == e.TargetElementId) &&
             e.RelationshipType == RelationshipTypes.HAS_SUBSECTION);
     }
@@ -89,7 +89,7 @@ Our approach involves several key steps.";
         var patternStrategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var keywordExtractor = new SimpleKeywordExtractor();
         using var chunker = new StructureChunker(patternStrategy, keywordExtractor);
-        
+
         var markdown = @"# Test
 
 Content here.";
@@ -100,7 +100,7 @@ Content here.";
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Chunks);
-        
+
         // Should not have structural elements since it's using pattern-based strategy
         Assert.False(result.HasStructuralGraph);
         Assert.Empty(result.StructuralElements);
@@ -114,14 +114,14 @@ Content here.";
         var element1 = new StructuralElement { Id = Guid.NewGuid(), ElementType = "heading", Level = 1 };
         var element2 = new StructuralElement { Id = Guid.NewGuid(), ElementType = "heading", Level = 2 };
         var element3 = new StructuralElement { Id = Guid.NewGuid(), ElementType = "paragraph" };
-        
-        var edge1 = new GraphEdge 
-        { 
-            SourceElementId = element1.Id, 
-            TargetElementId = element2.Id, 
-            RelationshipType = RelationshipTypes.HAS_SUBSECTION 
+
+        var edge1 = new GraphEdge
+        {
+            SourceElementId = element1.Id,
+            TargetElementId = element2.Id,
+            RelationshipType = RelationshipTypes.HAS_SUBSECTION
         };
-        
+
         var documentGraph = new DocumentGraph
         {
             SourceId = "test",
@@ -147,21 +147,21 @@ Content here.";
         var child1 = new StructuralElement { Id = Guid.NewGuid(), ElementType = "heading", Level = 2 };
         var child2 = new StructuralElement { Id = Guid.NewGuid(), ElementType = "paragraph" };
         var unrelated = new StructuralElement { Id = Guid.NewGuid(), ElementType = "paragraph" };
-        
-        var edge1 = new GraphEdge 
-        { 
-            SourceElementId = parent.Id, 
-            TargetElementId = child1.Id, 
-            RelationshipType = RelationshipTypes.HAS_SUBSECTION 
+
+        var edge1 = new GraphEdge
+        {
+            SourceElementId = parent.Id,
+            TargetElementId = child1.Id,
+            RelationshipType = RelationshipTypes.HAS_SUBSECTION
         };
-        
-        var edge2 = new GraphEdge 
-        { 
-            SourceElementId = parent.Id, 
-            TargetElementId = child2.Id, 
-            RelationshipType = RelationshipTypes.CONTAINS 
+
+        var edge2 = new GraphEdge
+        {
+            SourceElementId = parent.Id,
+            TargetElementId = child2.Id,
+            RelationshipType = RelationshipTypes.CONTAINS
         };
-        
+
         var documentGraph = new DocumentGraph
         {
             SourceId = "test",
@@ -185,14 +185,14 @@ Content here.";
         // Arrange
         var parent = new StructuralElement { Id = Guid.NewGuid(), ElementType = "heading", Level = 1 };
         var child = new StructuralElement { Id = Guid.NewGuid(), ElementType = "heading", Level = 2 };
-        
-        var edge = new GraphEdge 
-        { 
-            SourceElementId = parent.Id, 
-            TargetElementId = child.Id, 
-            RelationshipType = RelationshipTypes.HAS_SUBSECTION 
+
+        var edge = new GraphEdge
+        {
+            SourceElementId = parent.Id,
+            TargetElementId = child.Id,
+            RelationshipType = RelationshipTypes.HAS_SUBSECTION
         };
-        
+
         var documentGraph = new DocumentGraph
         {
             SourceId = "test",
@@ -234,12 +234,12 @@ public void Example()
 
         // Assert
         var structuralElements = result.StructuralElements;
-        
+
         // Verify original markdown is preserved in structural elements
         var headingElement = structuralElements.FirstOrDefault(e => e.ElementType == "heading" && e.Level == 1);
         Assert.NotNull(headingElement);
         Assert.Contains("**Bold Title**", headingElement.OriginalMarkdown);
-        
+
         var codeElement = structuralElements.FirstOrDefault(e => e.ElementType == "code_block");
         Assert.NotNull(codeElement);
         Assert.Contains("Console.WriteLine", codeElement.Content);

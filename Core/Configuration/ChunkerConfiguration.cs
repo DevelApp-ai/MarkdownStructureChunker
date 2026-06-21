@@ -95,7 +95,7 @@ public class ChunkerConfiguration
     /// This enables targeted keyword assignment for specific document sections.
     /// Default is an empty dictionary.
     /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> SectionKeywordMappings { get; set; } 
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> SectionKeywordMappings { get; set; }
         = new Dictionary<string, IReadOnlyList<string>>();
 
     /// <summary>

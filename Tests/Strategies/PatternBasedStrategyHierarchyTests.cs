@@ -14,7 +14,7 @@ public class PatternBasedStrategyHierarchyTests
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Chapter 1
 Chapter content here.
 ## Section 1.1
@@ -31,33 +31,33 @@ Second chapter content.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var chapter1 = chunks.FirstOrDefault(c => c.CleanTitle == "Chapter 1");
         var section11 = chunks.FirstOrDefault(c => c.CleanTitle == "Section 1.1");
         var subsection111 = chunks.FirstOrDefault(c => c.CleanTitle == "Subsection 1.1.1");
         var section12 = chunks.FirstOrDefault(c => c.CleanTitle == "Section 1.2");
         var chapter2 = chunks.FirstOrDefault(c => c.CleanTitle == "Chapter 2");
-        
+
         Assert.NotNull(chapter1);
         Assert.NotNull(section11);
         Assert.NotNull(subsection111);
         Assert.NotNull(section12);
         Assert.NotNull(chapter2);
-        
+
         // Check parent relationships
         Assert.Null(chapter1.Parent); // Top level has no parent
         Assert.Equal(chapter1.Id, section11.ParentId);
         Assert.Equal(section11.Id, subsection111.ParentId);
         Assert.Equal(chapter1.Id, section12.ParentId);
         Assert.Null(chapter2.Parent); // Top level has no parent
-        
+
         // Check children relationships
         Assert.Equal(2, chapter1.Children.Count); // Section 1.1 and Section 1.2
         Assert.Single(section11.Children); // Subsection 1.1.1
         Assert.Empty(subsection111.Children); // No children
         Assert.Empty(section12.Children); // No children
         Assert.Empty(chapter2.Children); // No children
-        
+
         // Verify specific child relationships
         Assert.Contains(chapter1.Children, child => child.Id == section11.Id);
         Assert.Contains(chapter1.Children, child => child.Id == section12.Id);
@@ -71,7 +71,7 @@ Second chapter content.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Main Title
 Main content.
 ## Subtitle A
@@ -86,17 +86,17 @@ Content B.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var mainTitle = chunks.FirstOrDefault(c => c.CleanTitle == "Main Title");
         var subtitleA = chunks.FirstOrDefault(c => c.CleanTitle == "Subtitle A");
         var subSubtitleA1 = chunks.FirstOrDefault(c => c.CleanTitle == "Sub-subtitle A1");
         var subtitleB = chunks.FirstOrDefault(c => c.CleanTitle == "Subtitle B");
-        
+
         Assert.NotNull(mainTitle);
         Assert.NotNull(subtitleA);
         Assert.NotNull(subSubtitleA1);
         Assert.NotNull(subtitleB);
-        
+
         // Check Parent property references
         Assert.Null(mainTitle.Parent);
         Assert.NotNull(subtitleA.Parent);
@@ -114,7 +114,7 @@ Content B.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Book Title
 Introduction to the book.
 ## Chapter 1: Getting Started
@@ -137,7 +137,7 @@ Chapter 2 introduction.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var book = chunks.FirstOrDefault(c => c.CleanTitle == "Book Title");
         var chapter1 = chunks.FirstOrDefault(c => c.CleanTitle == "Chapter 1: Getting Started");
         var prerequisites = chunks.FirstOrDefault(c => c.CleanTitle == "1.1 Prerequisites");
@@ -146,7 +146,7 @@ Chapter 2 introduction.";
         var linuxInstall = chunks.FirstOrDefault(c => c.CleanTitle == "1.2.2 Linux Installation");
         var configuration = chunks.FirstOrDefault(c => c.CleanTitle == "1.3 Configuration");
         var chapter2 = chunks.FirstOrDefault(c => c.CleanTitle == "Chapter 2: Advanced Topics");
-        
+
         Assert.NotNull(book);
         Assert.NotNull(chapter1);
         Assert.NotNull(prerequisites);
@@ -155,23 +155,23 @@ Chapter 2 introduction.";
         Assert.NotNull(linuxInstall);
         Assert.NotNull(configuration);
         Assert.NotNull(chapter2);
-        
+
         // Test navigation from book level
         Assert.Equal(2, book.Children.Count); // Chapter 1 and Chapter 2
         Assert.Contains(book.Children, child => child.Id == chapter1.Id);
         Assert.Contains(book.Children, child => child.Id == chapter2.Id);
-        
+
         // Test navigation from chapter level
         Assert.Equal(3, chapter1.Children.Count); // Prerequisites, Installation, Configuration
         Assert.Contains(chapter1.Children, child => child.Id == prerequisites.Id);
         Assert.Contains(chapter1.Children, child => child.Id == installation.Id);
         Assert.Contains(chapter1.Children, child => child.Id == configuration.Id);
-        
+
         // Test navigation from section level
         Assert.Equal(2, installation.Children.Count); // Windows and Linux installation
         Assert.Contains(installation.Children, child => child.Id == windowsInstall.Id);
         Assert.Contains(installation.Children, child => child.Id == linuxInstall.Id);
-        
+
         // Test upward navigation
         Assert.Equal(book.Id, chapter1.Parent?.Id);
         Assert.Equal(chapter1.Id, installation.Parent?.Id);
@@ -186,7 +186,7 @@ Chapter 2 introduction.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Title 1
 Content 1.
 # Title 2
@@ -199,20 +199,20 @@ Content 3.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var title1 = chunks.FirstOrDefault(c => c.CleanTitle == "Title 1");
         var title2 = chunks.FirstOrDefault(c => c.CleanTitle == "Title 2");
         var title3 = chunks.FirstOrDefault(c => c.CleanTitle == "Title 3");
-        
+
         Assert.NotNull(title1);
         Assert.NotNull(title2);
         Assert.NotNull(title3);
-        
+
         // All should be top-level with no parents or children
         Assert.Null(title1.Parent);
         Assert.Null(title2.Parent);
         Assert.Null(title3.Parent);
-        
+
         Assert.Empty(title1.Children);
         Assert.Empty(title2.Children);
         Assert.Empty(title3.Children);
@@ -225,7 +225,7 @@ Content 3.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Level 1
 Content 1.
 ### Level 3 (skipped level 2)
@@ -238,19 +238,19 @@ Content 2.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var level1 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 1");
         var level3 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 3 (skipped level 2)");
         var level2 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 2 (after level 3)");
-        
+
         Assert.NotNull(level1);
         Assert.NotNull(level3);
         Assert.NotNull(level2);
-        
+
         // Level 3 should be child of Level 1 (skipped level 2)
         Assert.Equal(level1.Id, level3.Parent?.Id);
         Assert.Equal(level1.Id, level2.Parent?.Id);
-        
+
         // Level 1 should have both as children
         Assert.Equal(2, level1.Children.Count);
         Assert.Contains(level1.Children, child => child.Id == level3.Id);
@@ -264,7 +264,7 @@ Content 2.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = "";
 
         // Act
@@ -281,7 +281,7 @@ Content 2.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Single Heading
 Single content.";
 
@@ -290,7 +290,7 @@ Single content.";
 
         // Assert
         Assert.Single(chunks);
-        
+
         var singleChunk = chunks.First();
         Assert.Equal("Single Heading", singleChunk.CleanTitle);
         Assert.Null(singleChunk.Parent);
@@ -304,7 +304,7 @@ Single content.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Level 1
 Content 1.
 ## Level 2
@@ -323,21 +323,21 @@ Content 6.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var level1 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 1");
         var level2 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 2");
         var level3 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 3");
         var level4 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 4");
         var level5 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 5");
         var level6 = chunks.FirstOrDefault(c => c.CleanTitle == "Level 6");
-        
+
         Assert.NotNull(level1);
         Assert.NotNull(level2);
         Assert.NotNull(level3);
         Assert.NotNull(level4);
         Assert.NotNull(level5);
         Assert.NotNull(level6);
-        
+
         // Check the chain of parent-child relationships
         Assert.Null(level1.Parent);
         Assert.Equal(level1.Id, level2.Parent?.Id);
@@ -345,7 +345,7 @@ Content 6.";
         Assert.Equal(level3.Id, level4.Parent?.Id);
         Assert.Equal(level4.Id, level5.Parent?.Id);
         Assert.Equal(level5.Id, level6.Parent?.Id);
-        
+
         // Check children counts
         Assert.Single(level1.Children);
         Assert.Single(level2.Children);
@@ -353,7 +353,7 @@ Content 6.";
         Assert.Single(level4.Children);
         Assert.Single(level5.Children);
         Assert.Empty(level6.Children);
-        
+
         // Verify the chain
         Assert.Equal(level2.Id, level1.Children.First().Id);
         Assert.Equal(level3.Id, level2.Children.First().Id);
@@ -369,7 +369,7 @@ Content 6.";
         var rules = PatternBasedStrategy.CreateDefaultRules();
         var config = ChunkerConfiguration.CreateDefault();
         var strategy = new PatternBasedStrategy(rules, config);
-        
+
         var text = @"# Introduction
 This is the introduction with some content.
 
@@ -395,31 +395,31 @@ The results section.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         var introduction = chunks.FirstOrDefault(c => c.CleanTitle == "Introduction");
         var background = chunks.FirstOrDefault(c => c.CleanTitle == "Background");
         var methodology = chunks.FirstOrDefault(c => c.CleanTitle == "Methodology");
         var dataCollection = chunks.FirstOrDefault(c => c.CleanTitle == "Data Collection");
         var analysis = chunks.FirstOrDefault(c => c.CleanTitle == "Analysis");
         var results = chunks.FirstOrDefault(c => c.CleanTitle == "Results");
-        
+
         Assert.NotNull(introduction);
         Assert.NotNull(background);
         Assert.NotNull(methodology);
         Assert.NotNull(dataCollection);
         Assert.NotNull(analysis);
         Assert.NotNull(results);
-        
+
         // Check structure
         Assert.Equal(3, introduction.Children.Count); // Background, Methodology, Results
         Assert.Contains(introduction.Children, child => child.Id == background.Id);
         Assert.Contains(introduction.Children, child => child.Id == methodology.Id);
         Assert.Contains(introduction.Children, child => child.Id == results.Id);
-        
+
         Assert.Equal(2, methodology.Children.Count); // Data Collection, Analysis
         Assert.Contains(methodology.Children, child => child.Id == dataCollection.Id);
         Assert.Contains(methodology.Children, child => child.Id == analysis.Id);
-        
+
         // Check parents
         Assert.Equal(introduction.Id, background.Parent?.Id);
         Assert.Equal(introduction.Id, methodology.Parent?.Id);

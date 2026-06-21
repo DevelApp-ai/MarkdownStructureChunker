@@ -31,20 +31,20 @@ More detailed information.";
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         // Should have at least the headings
         var headings = chunks.Where(c => c.IsHeading).ToList();
         Assert.True(headings.Count >= 3);
-        
+
         // Verify heading hierarchy
         var h1 = headings.FirstOrDefault(h => h.Level == 1);
         Assert.NotNull(h1);
         Assert.Equal("Introduction", h1.CleanTitle);
-        
+
         var h2 = headings.FirstOrDefault(h => h.Level == 2);
         Assert.NotNull(h2);
         Assert.Equal("Background", h2.CleanTitle);
-        
+
         var h3 = headings.FirstOrDefault(h => h.Level == 3);
         Assert.NotNull(h3);
         Assert.Equal("Details", h3.CleanTitle);
@@ -77,17 +77,17 @@ var code = ""example"";
         Assert.NotEmpty(elements);
         Assert.NotEmpty(edges);
         Assert.NotEmpty(chunks);
-        
+
         // Verify we have different types of structural elements
         Assert.Contains(elements, e => e.ElementType == "heading");
         Assert.Contains(elements, e => e.ElementType == "paragraph");
         Assert.Contains(elements, e => e.ElementType == "list");
         Assert.Contains(elements, e => e.ElementType == "code_block");
-        
+
         // Verify hierarchical relationships
         var headingElements = elements.Where(e => e.ElementType == "heading").ToList();
         Assert.True(headingElements.Count >= 2);
-        
+
         // Should have edges representing relationships
         Assert.Contains(edges, e => e.RelationshipType == RelationshipTypes.HAS_SUBSECTION);
     }
@@ -118,24 +118,24 @@ More section content.";
 
         // Assert
         var headingElements = elements.Where(e => e.ElementType == "heading").ToList();
-        
+
         // Should have proper hierarchy: h1 -> h2 -> h3, h1 -> h2
         var h1 = headingElements.FirstOrDefault(h => h.Level == 1);
         var h2Elements = headingElements.Where(h => h.Level == 2).ToList();
         var h3 = headingElements.FirstOrDefault(h => h.Level == 3);
-        
+
         Assert.NotNull(h1);
         Assert.Equal(2, h2Elements.Count);
         Assert.NotNull(h3);
-        
+
         // Verify relationships exist
-        Assert.Contains(edges, e => 
-            e.SourceElementId == h1.Id && 
+        Assert.Contains(edges, e =>
+            e.SourceElementId == h1.Id &&
             h2Elements.Any(h2 => h2.Id == e.TargetElementId) &&
             e.RelationshipType == RelationshipTypes.HAS_SUBSECTION);
-            
-        Assert.Contains(edges, e => 
-            h2Elements.Any(h2 => h2.Id == e.SourceElementId) && 
+
+        Assert.Contains(edges, e =>
+            h2Elements.Any(h2 => h2.Id == e.SourceElementId) &&
             e.TargetElementId == h3.Id &&
             e.RelationshipType == RelationshipTypes.HAS_SUBSECTION);
     }
@@ -196,7 +196,7 @@ const example = {
         // Assert
         var codeElements = elements.Where(e => e.ElementType == "code_block").ToList();
         Assert.Equal(2, codeElements.Count);
-        
+
         // Verify code content is preserved
         Assert.Contains(codeElements, e => e.Content.Contains("public class Example"));
         Assert.Contains(codeElements, e => e.Content.Contains("const example"));
@@ -229,7 +229,7 @@ const example = {
         // Assert
         var listElements = elements.Where(e => e.ElementType == "list").ToList();
         Assert.True(listElements.Count >= 2);
-        
+
         // Verify list content includes bullet points
         Assert.Contains(listElements, e => e.Content.Contains("• First item"));
     }
@@ -257,7 +257,7 @@ More content.";
             Assert.True(chunk.EndOffset > chunk.StartOffset);
             Assert.True(chunk.EndOffset <= markdown.Length);
         }
-        
+
         // First chunk should start at beginning
         var firstChunk = chunks.OrderBy(c => c.StartOffset).First();
         Assert.Equal(0, firstChunk.StartOffset);

@@ -48,7 +48,7 @@ public class EnhancedOnnxVectorizerTests
         // Assert
         Assert.Equal(2, queryResults.Length);
         Assert.Equal(2, passageResults.Length);
-        
+
         // Query and passage vectors should be different due to prefixes
         for (int i = 0; i < texts.Length; i++)
         {
@@ -70,7 +70,7 @@ public class EnhancedOnnxVectorizerTests
         // Assert
         Assert.Equal(vector1, vector2);
         Assert.Equal(1024, vector1.Length);
-        
+
         // Vector should be normalized
         var magnitude = Math.Sqrt(vector1.Sum(x => x * x));
         Assert.True(Math.Abs(magnitude - 1.0) < 0.001, "Vector should be normalized");
@@ -111,7 +111,7 @@ public class EnhancedOnnxVectorizerTests
         // Assert
         Assert.Equal(1024, vector.Length);
         Assert.True(vector.Any(x => Math.Abs(x) > 0), "Vector should have non-zero components");
-        
+
         // Vector should be normalized
         var magnitude = Math.Sqrt(vector.Sum(x => x * x));
         Assert.True(Math.Abs(magnitude - 1.0) < 0.001, "Vector should be normalized");
@@ -154,10 +154,10 @@ public class EnhancedOnnxVectorizerTests
         // Assert
         Assert.Equal(5, results.Length);
         Assert.All(results, vector => Assert.Equal(1024, vector.Length));
-        
+
         // Empty text should produce zero vector
         Assert.All(results[3], component => Assert.Equal(0f, component));
-        
+
         // Other vectors should have non-zero components
         for (int i = 0; i < results.Length; i++)
         {

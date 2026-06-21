@@ -17,9 +17,9 @@ class Program
         Console.WriteLine("2. Structure-First AST-Based Processing");
         Console.WriteLine("3. Both (for comparison)");
         Console.Write("Enter choice (1-3): ");
-        
+
         var choice = Console.ReadLine();
-        
+
         switch (choice)
         {
             case "1":
@@ -45,14 +45,14 @@ class Program
     static async Task RunTraditionalDemo()
     {
         Console.WriteLine("\n=== Traditional Pattern-Based Chunking ===");
-        
+
         // Create the chunking strategy with default rules
         var chunkingRules = PatternBasedStrategy.CreateDefaultRules();
         var chunkingStrategy = new PatternBasedStrategy(chunkingRules);
-        
+
         // Create an ML.NET keyword extractor
         var keywordExtractor = new MLNetKeywordExtractor();
-        
+
         // Create the main chunker
         var chunker = new StructureChunker(chunkingStrategy, keywordExtractor);
 
@@ -62,26 +62,26 @@ class Program
     static async Task RunStructureFirstDemo()
     {
         Console.WriteLine("\n=== Structure-First AST-Based Processing ===");
-        
+
         // Create structure-first chunker
         using var chunker = StructureChunker.CreateStructureFirst();
-        
+
         await ProcessTestDocumentWithStructure(chunker);
     }
 
     static async Task RunComparisonDemo()
     {
         Console.WriteLine("\n=== Comparison: Traditional vs Structure-First ===");
-        
+
         // Traditional
         Console.WriteLine("\n1. Traditional Pattern-Based Approach:");
         var patternStrategy = new PatternBasedStrategy(PatternBasedStrategy.CreateDefaultRules());
         var keywordExtractor = new MLNetKeywordExtractor();
         var traditionalChunker = new StructureChunker(patternStrategy, keywordExtractor);
         await ProcessTestDocument(traditionalChunker, "traditional");
-        
+
         Console.WriteLine("\n" + new string('=', 60));
-        
+
         // Structure-First
         Console.WriteLine("\n2. Structure-First AST-Based Approach:");
         using var structureChunker = StructureChunker.CreateStructureFirst();
@@ -97,7 +97,7 @@ class Program
             // Process the document
             Console.WriteLine("Processing test document...");
             var result = await chunker.ProcessAsync(testDocument, sourceId);
-            
+
             Console.WriteLine($"Document processed successfully!");
             Console.WriteLine($"Source ID: {result.SourceId}");
             Console.WriteLine($"Total chunks: {result.Chunks.Count}");
@@ -107,7 +107,7 @@ class Program
             // Display the results (first 5 chunks)
             Console.WriteLine("Document Structure (first 5 chunks):");
             Console.WriteLine("====================================");
-            
+
             foreach (var chunk in result.Chunks.Take(5))
             {
                 var indent = new string(' ', (chunk.Level - 1) * 2);
@@ -137,17 +137,17 @@ class Program
             // Process with structure-first approach
             Console.WriteLine("Processing test document with structure-first approach...");
             var result = await chunker.ProcessWithStructureAsync(testDocument, "structure-first-demo");
-            
+
             Console.WriteLine($"Document processed successfully!");
             Console.WriteLine($"Source ID: {result.SourceId}");
             Console.WriteLine($"Traditional chunks: {result.Chunks.Count}");
             Console.WriteLine($"Has structural graph: {result.HasStructuralGraph}");
-            
+
             if (result.HasStructuralGraph)
             {
                 Console.WriteLine($"Structural elements: {result.StructuralElements.Count}");
                 Console.WriteLine($"Structural relationships: {result.StructuralEdges.Count}");
-                
+
                 // Show element types
                 var elementsByType = result.StructuralElements.GroupBy(e => e.ElementType);
                 Console.WriteLine("\nStructural Elements by Type:");
@@ -155,7 +155,7 @@ class Program
                 {
                     Console.WriteLine($"  {group.Key}: {group.Count()}");
                 }
-                
+
                 // Show relationship types
                 var relationshipsByType = result.StructuralEdges.GroupBy(e => e.RelationshipType);
                 Console.WriteLine("\nRelationships by Type:");
@@ -163,7 +163,7 @@ class Program
                 {
                     Console.WriteLine($"  {group.Key}: {group.Count()}");
                 }
-                
+
                 Console.WriteLine("\nStructural Hierarchy:");
                 Console.WriteLine("====================");
                 DisplayStructuralHierarchy(result);
@@ -179,7 +179,7 @@ class Program
     static void DisplayStructuralHierarchy(MarkdownStructureChunker.Core.Models.DocumentGraph result)
     {
         var rootElements = result.RootElements.Where(e => e.ElementType == "heading").ToList();
-        
+
         foreach (var root in rootElements)
         {
             DisplayStructuralElement(result, root, 0);
@@ -189,16 +189,16 @@ class Program
     static void DisplayStructuralElement(MarkdownStructureChunker.Core.Models.DocumentGraph graph, MarkdownStructureChunker.Core.Models.StructuralElement element, int depth)
     {
         var indent = new string(' ', depth * 2);
-        var contentPreview = element.Content.Length > 50 
-            ? element.Content.Substring(0, 50) + "..." 
+        var contentPreview = element.Content.Length > 50
+            ? element.Content.Substring(0, 50) + "..."
             : element.Content;
-            
+
         Console.WriteLine($"{indent}├─ [{element.ElementType}] {contentPreview}");
-        
+
         var children = graph.GetChildElements(element.Id)
             .Where(e => e.ElementType == "heading") // Only show heading children for clarity
             .ToList();
-            
+
         foreach (var child in children)
         {
             DisplayStructuralElement(graph, child, depth + 1);
@@ -208,7 +208,7 @@ class Program
     private static void DisplayHierarchy(IReadOnlyList<MarkdownStructureChunker.Core.Models.ChunkNode> chunks, Guid? parentId, int depth)
     {
         var children = chunks.Where(c => c.ParentId == parentId).OrderBy(c => c.Level).Take(5); // Limit for readability
-        
+
         foreach (var child in children)
         {
             var indent = new string(' ', depth * 2);

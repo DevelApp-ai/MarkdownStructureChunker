@@ -23,7 +23,7 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     public MLNetKeywordExtractor()
     {
         _mlContext = new MLContext(seed: 42);
-        
+
         try
         {
             _pipeline = CreateTextProcessingPipeline();
@@ -180,7 +180,7 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     {
         var wordPattern = new Regex(@"\b[a-zA-Z]+\b", RegexOptions.Compiled);
         var matches = wordPattern.Matches(text);
-        
+
         return matches.Cast<Match>()
             .Select(m => m.Value)
             .ToList();
