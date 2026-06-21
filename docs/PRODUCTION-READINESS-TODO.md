@@ -2,7 +2,7 @@
 
 ## Current assessment
 
-**Overall readiness:** **Near production-ready** for core library usage, but **not fully release-ready** without cleanup.
+**Overall readiness:** **Production-ready baseline established** for core library usage, with additional hardening work still recommended.
 
 ### What is strong
 - .NET 8 solution builds successfully in Release mode.
@@ -12,18 +12,17 @@
 - Architecture is modular (strategies, extractors, vectorizers, orchestration).
 
 ### What blocks full production-readiness
-- Lint/format baseline is currently failing (`dotnet format --verify-no-changes` reports many formatting violations).
-- Documentation and repository claims appear stale in places (README mentions ~66 tests while actual count is much higher).
-- No explicit quality gates documented for coverage thresholds, API compatibility, or semantic versioning policy.
+- Coverage threshold, API compatibility policy, and operational runbooks still need formalization.
+- Coverage thresholds and API compatibility/versioning policy are not yet enforced as mandatory gates.
 - Operational readiness details are partial (monitoring/telemetry guidance, support policy, deprecation policy).
 
 ## Follow-up TODO
 
 ### P0 (must-fix before “production-ready” claim)
-- [ ] Make formatter/lint checks pass on the full repository and enforce in CI as a required check.
-- [ ] Update README and release notes to reflect current, verified project metrics (test count, capabilities).
-- [ ] Define and document a release quality gate (build + tests + lint required).
-- [ ] Add branch protection expectations in CONTRIBUTING or docs (required checks, review policy).
+- [x] Make formatter/lint checks pass on the full repository and enforce in CI as a required check.
+- [x] Update README and release notes to reflect current, verified project metrics (test count, capabilities).
+- [x] Define and document a release quality gate (build + tests + lint required).
+- [x] Add branch protection expectations in CONTRIBUTING or docs (required checks, review policy).
 
 ### P1 (high-value hardening)
 - [ ] Add coverage reporting and decide a minimum acceptable threshold.
@@ -40,4 +39,4 @@
 ## Verification snapshot (this branch)
 - `dotnet build --configuration Release --no-restore` ✅
 - `dotnet test --configuration Release` ✅ (248 passed)
-- `dotnet format --verify-no-changes` ❌ (formatting issues detected)
+- `dotnet format --verify-no-changes` ✅

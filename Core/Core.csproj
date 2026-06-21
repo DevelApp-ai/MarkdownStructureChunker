@@ -27,8 +27,8 @@
       - Multiple keyword extraction strategies (Simple and ML.NET)
       - ONNX vectorization framework for semantic embeddings
       - Support for Markdown, numeric, legal, and appendix patterns
-      - Comprehensive test suite with 66 test cases
-      - Production-ready with proper error handling and resource management
+      - Comprehensive automated test suite (248 tests currently)
+      - Robust error handling and resource management
     </PackageReleaseNotes>
     <Copyright>Copyright © 2025 DevelApp</Copyright>
     <AssemblyTitle>MarkdownStructureChunker</AssemblyTitle>

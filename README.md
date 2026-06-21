@@ -9,7 +9,7 @@ A powerful .NET library for intelligent document structure analysis and chunking
 - **Advanced Keyword Extraction**: Supports both simple frequency-based and ML.NET-powered keyword extraction
 - **ONNX Vectorization**: Integration with the intfloat/multilingual-e5-large model for semantic embeddings
 - **Extensible Architecture**: Plugin-based design allows for custom chunking strategies and extractors
-- **Comprehensive Testing**: 66+ unit and integration tests ensuring reliability
+- **Comprehensive Testing**: Extensive unit and integration tests (248 currently) ensuring reliability
 
 ## Quick Start
 
@@ -314,13 +314,7 @@ Test categories:
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes and add tests
-4. Ensure all tests pass: `dotnet test`
-5. Commit your changes: `git commit -m "Add your feature"`
-6. Push to the branch: `git push origin feature/your-feature`
-7. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch protection expectations, required quality checks, and PR workflow.
 
 ## License
 

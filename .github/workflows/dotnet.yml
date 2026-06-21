@@ -85,6 +85,9 @@ jobs:
       # Use the version calculated by GitVersion
       run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
 
+    - name: Verify formatting
+      run: dotnet format --verify-no-changes
+
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
 
@@ -162,8 +165,8 @@ jobs:
           
           ### Technical Details
           - Full .NET 8.0 support with nullable reference types
-          - Comprehensive test suite with 66 test cases
-          - Production-ready with proper error handling and resource management
+          - Comprehensive automated test suite (248 tests currently)
+          - Robust error handling and resource management
           - SourceLink enabled for debugging transparency
           - Apache 2.0 licensed
           
