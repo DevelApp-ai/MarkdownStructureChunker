@@ -105,6 +105,28 @@ jobs:
       # Creates the NuGet package using the calculated version
       run: dotnet pack ./Core/Core.csproj --no-build --configuration Release -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.semVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
 
+    - name: Validate package consumption
+      run: |
+        SAMPLE_DIR="${RUNNER_TEMP}/package-consumption-sample"
+        rm -rf "$SAMPLE_DIR"
+        mkdir -p "$SAMPLE_DIR"
+        cd "$SAMPLE_DIR"
+
+        dotnet new console --framework net8.0 --force
+        dotnet add package MarkdownStructureChunker --version "${{ steps.gitversion.outputs.nuGetVersionV2 }}" --source "${GITHUB_WORKSPACE}/artifacts"
+
+        cat > Program.cs <<'EOF'
+        using MarkdownStructureChunker.Core;
+        using System.Linq;
+
+        using var chunker = StructureChunker.CreateStructureFirst();
+        var chunks = await chunker.ChunkAsync("# Sample\nThis is package validation content.");
+        Console.WriteLine(chunks.Count());
+        EOF
+
+        dotnet build --configuration Release
+        dotnet run --configuration Release --no-build
+
     - name: Upload package artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -178,4 +200,3 @@ jobs:
           ./artifacts/MarkdownStructureChunker.${{ steps.gitversion.outputs.nuGetVersionV2 }}.snupkg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

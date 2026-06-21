@@ -28,7 +28,7 @@
 - [ ] Add coverage reporting and decide a minimum acceptable threshold.
 - [x] Add API compatibility/versioning policy for NuGet consumers.
 - [x] Add dependency/vulnerability monitoring policy and cadence.
-- [ ] Validate package consumption from a clean sample project in CI.
+- [x] Validate package consumption from a clean sample project in CI.
 
 ### P2 (operational maturity)
 - [ ] Add support/SLA and issue triage expectations.
