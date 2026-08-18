@@ -108,9 +108,22 @@ public class PatternBasedStrategy : IChunkingStrategy
 
                     if (!string.IsNullOrEmpty(contentToAdd))
                     {
-                        // Calculate content offsets
+                        // Calculate content offsets. The content ends just before the line
+                        // terminator that precedes the current heading line, so we step
+                        // back over a \r\n / \r / \n sequence from the heading offset
+                        // (delimiter-aware, unlike the previous Environment.NewLine.Length
+                        // subtraction which drifted on cross-platform line endings).
                         var contentStartOffset = lineOffsets[contentStartLine];
-                        var contentEndOffset = lineIndex > 0 ? lineOffsets[lineIndex] - Environment.NewLine.Length : lineOffsets[lineIndex];
+                        var contentEndOffset = lineOffsets[lineIndex];
+                        if (lineIndex > 0 && contentEndOffset > 0)
+                        {
+                            int back = contentEndOffset;
+                            if (back - 1 >= 0 && text[back - 1] == '\n')
+                                back--;
+                            if (back - 1 >= 0 && text[back - 1] == '\r')
+                                back--;
+                            contentEndOffset = back;
+                        }
 
                         var updatedChunk = currentChunk with
                         {
