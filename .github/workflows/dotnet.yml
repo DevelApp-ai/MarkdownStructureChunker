@@ -88,8 +88,34 @@ jobs:
     - name: Verify formatting
       run: dotnet format --verify-no-changes
 
-    - name: Test
-      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+    - name: Test with coverage
+      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" /p:CoverletOutputFormat=cobertura
+
+    - name: Generate coverage report
+      if: always()
+      run: |
+        dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.4.4 || true
+        reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Cobertura\;HtmlSummary -assemblyfilters:"+MarkdownStructureChunker;-*Tests*"
+
+    - name: Enforce minimum line coverage
+      # Prevent silent coverage regressions. Threshold starts low and can be raised as coverage improves.
+      run: |
+        LINECOV=$(grep -o 'line-rate="[0-9.]*"' coverage_report/Cobertura.xml | head -1 | grep -o '[0-9.]*')
+        echo "Line coverage: ${LINECOV}%"
+        THRESHOLD=40
+        if (( $(echo "$LINECOV < $THRESHOLD" | bc -l) )); then
+          echo "::error::Line coverage ${LINECOV}% is below the required ${THRESHOLD}% threshold."
+          exit 1
+        fi
+      shell: bash
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: coverage-report
+        path: coverage-report/**
+        if-no-files-found: warn
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
