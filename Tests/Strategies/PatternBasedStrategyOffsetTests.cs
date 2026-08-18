@@ -397,5 +397,48 @@ This section describes the methodology.";
             Assert.True(chunk.EndOffset >= 0);
         }
     }
-}
 
+    [Theory]
+    [InlineData("CRLF", "\r\n")]
+    [InlineData("LF", "\n")]
+    [InlineData("CR", "\r")]
+    public void ProcessText_LineOffsets_AreDelimiterAwareAcrossLineEndings(string _label, string nl)
+    {
+        // Arrange
+        var rules = PatternBasedStrategy.CreateDefaultRules();
+        var config = new ChunkerConfiguration
+        {
+            CalculateOffsets = true,
+            PreserveOriginalMarkdown = true
+        };
+        var strategy = new PatternBasedStrategy(rules, config);
+
+        var text = "# First Heading" + nl + "Some content here." + nl + "## Second Heading" + nl + "More content.";
+
+        // Act
+        var chunks = strategy.ProcessText(text, "test");
+
+        // Assert
+        Assert.NotEmpty(chunks);
+
+        // Every StartOffset must point at the actual start of the heading line in the
+        // original text, regardless of the line-ending style. This guards against the
+        // previous Environment.NewLine-based drift (which mis-counted on Windows/CRLF
+        // and on any platform whose NewLine differs from the document's actual endings).
+        foreach (var chunk in chunks)
+        {
+            Assert.InRange(chunk.StartOffset, 0, text.Length);
+            Assert.True(chunk.EndOffset >= chunk.StartOffset);
+
+            // The heading marker must be found at StartOffset in the original text.
+            var at = text.Substring(chunk.StartOffset);
+            Assert.StartsWith("#", at);
+        }
+
+        // OriginalMarkdown must be a verbatim slice of the source text (offsets land
+        // on real character boundaries), proving the offsets are platform-correct.
+        var first = chunks.First(c => c.CleanTitle == "First Heading");
+        Assert.True(first.StartOffset == 0);
+        Assert.Equal(text.Substring(first.StartOffset, first.EndOffset - first.StartOffset), first.OriginalMarkdown);
+    }
+}

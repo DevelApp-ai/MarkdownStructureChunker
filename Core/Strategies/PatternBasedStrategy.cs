@@ -67,17 +67,15 @@ public class PatternBasedStrategy : IChunkingStrategy
         var contextStack = new Stack<ChunkNode>();
         var currentContent = new StringBuilder();
 
-        // Track character positions for offset calculation
-        var currentOffset = 0;
-        var lineOffsets = new List<int>();
-
-        // Calculate line start positions
-        lineOffsets.Add(0);
-        for (int i = 0; i < lines.Length - 1; i++)
-        {
-            currentOffset += lines[i].Length + Environment.NewLine.Length;
-            lineOffsets.Add(currentOffset);
-        }
+        // Track character positions for offset calculation. The offset for each
+        // emitted line index must match the original document text exactly,
+        // independent of the platform's Environment.NewLine (which is 2 chars on
+        // Windows but 1 on Unix). Splitting on {'\r','\n'} yields an empty entry
+        // for every \r\n pair, so using a fixed Environment.NewLine.Length per line
+        // drifts the computed offsets away from the real character positions and
+        // corrupts StartOffset/EndOffset/OriginalMarkdown. Instead we walk the
+        // original text once and record the real start offset of every split line.
+        var lineOffsets = ComputeLineOffsets(text, lines);
 
         // Create a root chunk to handle content before the first heading
         var rootChunk = new ChunkNode
@@ -715,6 +713,33 @@ public class PatternBasedStrategy : IChunkingStrategy
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Computes the exact character offset of each line produced by splitting
+    /// <paramref name="text"/> on '\r' and '\n'. This is delimiter-aware (handles
+    /// "\r\n", "\r", and "\n" without over- or under-counting), so the resulting
+    /// offsets match the original text regardless of the host platform's
+    /// <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <param name="text">The original document text</param>
+    /// <param name="lines">The lines produced by splitting <paramref name="text"/></param>
+    /// <returns>A list where index i holds the character offset of <c>lines[i]</c></returns>
+    private static List<int> ComputeLineOffsets(string text, string[] lines)
+    {
+        var offsets = new List<int>(lines.Length);
+        int pos = 0;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            offsets.Add(pos);
+            pos += lines[i].Length;
+            // Consume the line terminator(s) that separated this line from the next.
+            if (pos < text.Length && text[pos] == '\r')
+                pos++;
+            if (pos < text.Length && text[pos] == '\n')
+                pos++;
+        }
+        return offsets;
     }
 
     /// <summary>
