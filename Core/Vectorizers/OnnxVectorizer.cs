@@ -24,6 +24,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     private readonly Tokenizer? _tokenizer;
     private readonly bool _isModelAvailable;
     private readonly int _maxSequenceLength;
+    private readonly IChunkerLogger _logger;
     private bool _disposed = false;
 
     /// <summary>
@@ -37,9 +38,10 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// <param name="modelPath">Optional path to the ONNX model file. If null or invalid, the vectorizer will operate in fallback mode.</param>
     /// <param name="tokenizerPath">Optional path to the tokenizer files. If null, uses built-in tokenization.</param>
     /// <param name="maxSequenceLength">Maximum sequence length for tokenization (default: 512).</param>
-    public OnnxVectorizer(string? modelPath = null, string? tokenizerPath = null, int maxSequenceLength = 512)
+    public OnnxVectorizer(string? modelPath = null, string? tokenizerPath = null, int maxSequenceLength = 512, IChunkerLogger? logger = null)
     {
         _maxSequenceLength = maxSequenceLength;
+        _logger = logger ?? NullChunkerLogger.Instance;
 
         try
         {
@@ -48,7 +50,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 // Validate model file before loading
                 if (!ValidateModelFile(modelPath))
                 {
-                    Console.WriteLine($"Warning: Model file validation failed: {modelPath}");
+                    _logger.LogWarning($"Warning: Model file validation failed: {modelPath}");
                     _isModelAvailable = false;
                     return;
                 }
@@ -68,21 +70,21 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 _tokenizer = LoadTokenizer(tokenizerPath);
                 _isModelAvailable = true;
 
-                Console.WriteLine($"Enhanced ONNX model loaded successfully from: {modelPath}");
-                Console.WriteLine($"Model inputs: {string.Join(", ", _session.InputMetadata.Keys)}");
-                Console.WriteLine($"Model outputs: {string.Join(", ", _session.OutputMetadata.Keys)}");
-                Console.WriteLine($"Performance optimizations enabled: CPU threads={Environment.ProcessorCount}");
+                _logger.LogInformation($"Enhanced ONNX model loaded successfully from: {modelPath}");
+                _logger.LogInformation($"Model inputs: {string.Join(", ", _session.InputMetadata.Keys)}");
+                _logger.LogInformation($"Model outputs: {string.Join(", ", _session.OutputMetadata.Keys)}");
+                _logger.LogInformation($"Performance optimizations enabled: CPU threads={Environment.ProcessorCount}");
             }
             else
             {
                 _isModelAvailable = false;
-                Console.WriteLine("ONNX model not found. Using deterministic fallback implementation.");
-                Console.WriteLine("For production use, download the multilingual-e5-large ONNX model from Hugging Face.");
+                _logger.LogInformation("ONNX model not found. Using deterministic fallback implementation.");
+                _logger.LogInformation("For production use, download the multilingual-e5-large ONNX model from Hugging Face.");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Failed to initialize enhanced ONNX model: {ex.Message}");
+            _logger.LogWarning($"Warning: Failed to initialize enhanced ONNX model: {ex.Message}");
             _isModelAvailable = false;
         }
     }
@@ -101,20 +103,20 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             // Check file size (should be reasonable for a transformer model)
             if (fileInfo.Length < 1024 * 1024) // Less than 1MB is suspicious
             {
-                Console.WriteLine($"Warning: Model file seems too small: {fileInfo.Length} bytes");
+                _logger.LogWarning($"Warning: Model file seems too small: {fileInfo.Length} bytes");
                 return false;
             }
 
             if (fileInfo.Length > 10L * 1024 * 1024 * 1024) // More than 10GB is suspicious
             {
-                Console.WriteLine($"Warning: Model file seems too large: {fileInfo.Length} bytes");
+                _logger.LogWarning($"Warning: Model file seems too large: {fileInfo.Length} bytes");
                 return false;
             }
 
             // Check file extension
             if (!modelPath.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"Warning: Model file doesn't have .onnx extension: {modelPath}");
+                _logger.LogWarning($"Warning: Model file doesn't have .onnx extension: {modelPath}");
                 return false;
             }
 
@@ -122,7 +124,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error validating model file: {ex.Message}");
+            _logger.LogError($"Error validating model file: {ex.Message}");
             return false;
         }
     }
@@ -143,7 +145,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 var tokenizerJsonPath = Path.Combine(tokenizerPath, "tokenizer.json");
                 if (File.Exists(tokenizerJsonPath))
                 {
-                    Console.WriteLine($"Loading tokenizer from: {tokenizerJsonPath}");
+                    _logger.LogInformation($"Loading tokenizer from: {tokenizerJsonPath}");
                     // Note: This would need the correct API call when Microsoft.ML.Tokenizers supports it
                     // For now, fall back to BERT tokenizer
                 }
@@ -152,19 +154,19 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 var vocabPath = Path.Combine(tokenizerPath, "vocab.txt");
                 if (File.Exists(vocabPath))
                 {
-                    Console.WriteLine($"Loading BERT tokenizer from: {vocabPath}");
+                    _logger.LogInformation($"Loading BERT tokenizer from: {vocabPath}");
                     return BertTokenizer.Create(vocabPath);
                 }
 
-                Console.WriteLine($"No compatible tokenizer files found in: {tokenizerPath}");
+                _logger.LogInformation($"No compatible tokenizer files found in: {tokenizerPath}");
             }
 
-            Console.WriteLine("Tokenizer files not found. Using enhanced fallback tokenization.");
+            _logger.LogInformation("Tokenizer files not found. Using enhanced fallback tokenization.");
             return null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Failed to load enhanced tokenizer: {ex.Message}");
+            _logger.LogWarning($"Warning: Failed to load enhanced tokenizer: {ex.Message}");
             return null;
         }
     }
@@ -242,7 +244,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             // Log performance for monitoring (could be configurable)
             if (inferenceTime.TotalMilliseconds > 1000) // Log slow inferences
             {
-                Console.WriteLine($"Slow ONNX inference detected: {inferenceTime.TotalMilliseconds:F2}ms for text length {text.Length}");
+                _logger.LogError($"Slow ONNX inference detected: {inferenceTime.TotalMilliseconds:F2}ms for text length {text.Length}");
             }
 
             // Enhanced output processing
@@ -252,7 +254,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error during enhanced ONNX inference: {ex.Message}");
+            _logger.LogError($"Error during enhanced ONNX inference: {ex.Message}");
             return GenerateEnhancedDeterministicVector(text);
         }
     }
@@ -289,7 +291,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Enhanced tokenization error: {ex.Message}. Using fallback.");
+                _logger.LogInformation($"Enhanced tokenization error: {ex.Message}. Using fallback.");
             }
         }
 
@@ -374,7 +376,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         {
             if (!outputs.Any())
             {
-                Console.WriteLine("Warning: No outputs from ONNX model");
+                _logger.LogWarning("Warning: No outputs from ONNX model");
                 return new float[VectorDimension];
             }
 
@@ -392,13 +394,13 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             else
             {
                 // Fallback to improved mean pooling if no attention mask
-                Console.WriteLine("Warning: No attention mask found. Using improved mean pooling.");
+                _logger.LogWarning("Warning: No attention mask found. Using improved mean pooling.");
                 return ComputeImprovedMeanPooling(lastHiddenState);
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error processing ONNX model outputs: {ex.Message}");
+            _logger.LogError($"Error processing ONNX model outputs: {ex.Message}");
             return new float[VectorDimension]; // Return zero vector as fallback
         }
     }
@@ -427,7 +429,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         // Validate dimensions
         if (batchSize != 1)
         {
-            Console.WriteLine($"Warning: Batch size {batchSize} > 1. Using first batch only.");
+            _logger.LogWarning($"Warning: Batch size {batchSize} > 1. Using first batch only.");
         }
 
         var maskDimensions = attentionMask.Dimensions.ToArray();
@@ -449,7 +451,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
 
         if (totalTokens == 0)
         {
-            Console.WriteLine("Warning: No real tokens found in attention mask. Returning zero vector.");
+            _logger.LogWarning("Warning: No real tokens found in attention mask. Returning zero vector.");
             return NormalizeVectorL2(result);
         }
 
@@ -544,7 +546,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
                 output = outputs.FirstOrDefault(o => o.Name.Equals(altName, StringComparison.OrdinalIgnoreCase));
                 if (output != null)
                 {
-                    Console.WriteLine($"Warning: Using alternative tensor name '{altName}' instead of '{tensorName}'");
+                    _logger.LogWarning($"Warning: Using alternative tensor name '{altName}' instead of '{tensorName}'");
                     break;
                 }
             }
@@ -553,7 +555,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
             {
                 // Use first available output as ultimate fallback
                 output = outputs.First();
-                Console.WriteLine($"Warning: Tensor '{tensorName}' not found. Using first available output '{output.Name}'");
+                _logger.LogWarning($"Warning: Tensor '{tensorName}' not found. Using first available output '{output.Name}'");
             }
         }
 
@@ -575,7 +577,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Could not extract optional tensor '{tensorName}': {ex.Message}");
+            _logger.LogWarning($"Warning: Could not extract optional tensor '{tensorName}': {ex.Message}");
             return null;
         }
     }
@@ -602,7 +604,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
         }
         else
         {
-            Console.WriteLine("Warning: Zero magnitude vector encountered during L2 normalization");
+            _logger.LogWarning("Warning: Zero magnitude vector encountered during L2 normalization");
         }
 
         return vector;
@@ -749,13 +751,13 @@ public static class OnnxVectorizerFactory
     /// Looks for models in the standard locations.
     /// </summary>
     /// <returns>A new OnnxVectorizer instance</returns>
-    public static OnnxVectorizer CreateDefault()
+    public static OnnxVectorizer CreateDefault(IChunkerLogger? logger = null)
     {
         // Default paths where the model files would typically be located
         var modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "multilingual-e5-large.onnx");
         var tokenizerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "tokenizer");
 
-        return new OnnxVectorizer(modelPath, tokenizerPath);
+        return new OnnxVectorizer(modelPath, tokenizerPath, logger: logger);
     }
 
     /// <summary>
@@ -765,9 +767,9 @@ public static class OnnxVectorizerFactory
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
     /// <param name="maxSequenceLength">Maximum sequence length for tokenization</param>
     /// <returns>A new OnnxVectorizer instance</returns>
-    public static OnnxVectorizer CreateWithPaths(string modelPath, string? tokenizerPath = null, int maxSequenceLength = 512)
+    public static OnnxVectorizer CreateWithPaths(string modelPath, string? tokenizerPath = null, int maxSequenceLength = 512, IChunkerLogger? logger = null)
     {
-        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength);
+        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength, logger);
     }
 
     /// <summary>
@@ -775,9 +777,9 @@ public static class OnnxVectorizerFactory
     /// Uses advanced deterministic algorithms for consistent embeddings.
     /// </summary>
     /// <returns>A new OnnxVectorizer instance in deterministic mode</returns>
-    public static OnnxVectorizer CreateDeterministic()
+    public static OnnxVectorizer CreateDeterministic(IChunkerLogger? logger = null)
     {
-        return new OnnxVectorizer();
+        return new OnnxVectorizer(logger: logger);
     }
 
     /// <summary>
@@ -786,9 +788,9 @@ public static class OnnxVectorizerFactory
     /// <param name="modelPath">Path to the ONNX model file</param>
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
     /// <returns>A new OnnxVectorizer instance optimized for short text</returns>
-    public static OnnxVectorizer CreateForShortText(string? modelPath = null, string? tokenizerPath = null)
+    public static OnnxVectorizer CreateForShortText(string? modelPath = null, string? tokenizerPath = null, IChunkerLogger? logger = null)
     {
-        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength: 256);
+        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength: 256, logger: logger);
     }
 
     /// <summary>
@@ -797,9 +799,9 @@ public static class OnnxVectorizerFactory
     /// <param name="modelPath">Path to the ONNX model file</param>
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
     /// <returns>A new OnnxVectorizer instance optimized for long text</returns>
-    public static OnnxVectorizer CreateForLongText(string? modelPath = null, string? tokenizerPath = null)
+    public static OnnxVectorizer CreateForLongText(string? modelPath = null, string? tokenizerPath = null, IChunkerLogger? logger = null)
     {
-        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength: 1024);
+        return new OnnxVectorizer(modelPath, tokenizerPath, maxSequenceLength: 1024, logger: logger);
     }
 }
 

@@ -14,15 +14,17 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     private readonly MLContext _mlContext;
     private readonly ITransformer? _pipeline;
     private readonly PredictionEngine<TextInput, TextFeatures>? _predictionEngine;
+    private readonly IChunkerLogger _logger;
     private bool _disposed = false;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MLNetKeywordExtractor"/> class.
     /// Sets up the ML.NET context and text processing pipeline for keyword extraction.
     /// </summary>
-    public MLNetKeywordExtractor()
+    public MLNetKeywordExtractor(IChunkerLogger? logger = null)
     {
         _mlContext = new MLContext(seed: 42);
+        _logger = logger ?? NullChunkerLogger.Instance;
 
         try
         {
@@ -32,7 +34,7 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
         catch (Exception ex)
         {
             // If ML.NET pipeline creation fails, we'll fall back to simple extraction
-            Console.WriteLine($"Warning: ML.NET pipeline creation failed: {ex.Message}");
+            _logger.LogWarning($"ML.NET pipeline creation failed: {ex.Message}");
             _pipeline = null;
             _predictionEngine = null;
         }
@@ -113,23 +115,8 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
         // Process through ML.NET pipeline
         var prediction = _predictionEngine.Predict(input);
 
-        // Extract words from the original text for frequency analysis
-        var words = ExtractWords(cleanedContent);
-        var filteredWords = words.Where(w => w.Length >= 3 && !StopWords.IsStopWord(w)).ToList();
-
-        // Count word frequencies
-        var wordFrequencies = filteredWords
-            .GroupBy(word => word, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
-
-        // Select top keywords by frequency
-        var keywords = wordFrequencies
-            .OrderByDescending(kvp => kvp.Value)
-            .ThenBy(kvp => kvp.Key)
-            .Take(maxKeywords)
-            .Select(kvp => kvp.Key.ToLowerInvariant())
-            .ToList();
-
+        // Frequency-based keyword selection on the cleaned text.
+        var keywords = KeywordFrequencyAnalyzer.ExtractTopKeywords(cleanedContent, maxKeywords);
         return keywords;
     }
 
@@ -141,21 +128,8 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
     /// <returns>A list of extracted keywords</returns>
     private Task<IReadOnlyList<string>> ExtractKeywordsSimple(string content, int maxKeywords)
     {
-        var words = ExtractWords(content);
-        var filteredWords = words.Where(w => w.Length >= 3 && !StopWords.IsStopWord(w)).ToList();
-
-        var wordFrequencies = filteredWords
-            .GroupBy(word => word, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
-
-        var keywords = wordFrequencies
-            .OrderByDescending(kvp => kvp.Value)
-            .ThenBy(kvp => kvp.Key)
-            .Take(maxKeywords)
-            .Select(kvp => kvp.Key.ToLowerInvariant())
-            .ToList();
-
-        return Task.FromResult<IReadOnlyList<string>>(keywords);
+        var keywords = KeywordFrequencyAnalyzer.ExtractTopKeywords(content, maxKeywords);
+        return Task.FromResult(keywords);
     }
 
     /// <summary>
@@ -169,21 +143,6 @@ public class MLNetKeywordExtractor : IKeywordExtractor, IDisposable
         text = Regex.Replace(text, @"[#*_`\[\](){}]", " ");
         text = Regex.Replace(text, @"\s+", " ");
         return text.Trim();
-    }
-
-    /// <summary>
-    /// Extracts words from text using regex pattern matching.
-    /// </summary>
-    /// <param name="text">The input text</param>
-    /// <returns>A list of extracted words</returns>
-    private static List<string> ExtractWords(string text)
-    {
-        var wordPattern = new Regex(@"\b[a-zA-Z]+\b", RegexOptions.Compiled);
-        var matches = wordPattern.Matches(text);
-
-        return matches.Cast<Match>()
-            .Select(m => m.Value)
-            .ToList();
     }
 
     /// <summary>
