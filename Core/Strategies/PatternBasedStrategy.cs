@@ -126,7 +126,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                         };
 
                         // Update the chunk in the results if it exists
-                        var index = chunks.FindIndex(c => c.Id == currentChunk.Id);
+                        var index = chunkIndexById.TryGetValue(currentChunk.Id, out var idx1) ? idx1 : -1;
                         if (index >= 0)
                         {
                             chunks[index] = updatedChunk;
@@ -204,7 +204,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                 };
 
                 // Update the chunk in the results if it exists
-                var index = chunks.FindIndex(c => c.Id == currentChunk.Id);
+                var index = chunkIndexById.TryGetValue(currentChunk.Id, out var idx2) ? idx2 : -1;
                 if (index >= 0)
                 {
                     chunks[index] = updatedChunk;
@@ -632,17 +632,25 @@ public class PatternBasedStrategy : IChunkingStrategy
             return chunks;
 
         // Create the final result list that will maintain consistent object references
-        var result = new List<ChunkNode>();
-        var chunkMap = new Dictionary<Guid, ChunkNode>();
+        var result = new List<ChunkNode>(chunks.Count);
+        var chunkMap = new Dictionary<Guid, ChunkNode>(chunks.Count);
 
-        // First pass: Create all chunks with parent references but empty children
+        // First pass: Create all chunks with parent references but empty children.
+        // Parent lookup is O(1) via the source-id map instead of a linear scan over `chunks`
+        // for every node (the previous `chunks.FirstOrDefault(...)` was O(N^2)).
+        var sourceById = new Dictionary<Guid, ChunkNode>(chunks.Count);
         foreach (var chunk in chunks)
         {
-            // Find parent
+            sourceById[chunk.Id] = chunk;
+        }
+
+        foreach (var chunk in chunks)
+        {
+            // Find parent from the prebuilt id map (O(1))
             ChunkNode? parent = null;
             if (chunk.ParentId.HasValue)
             {
-                parent = chunks.FirstOrDefault(c => c.Id == chunk.ParentId.Value);
+                sourceById.TryGetValue(chunk.ParentId.Value, out parent);
             }
 
             // Create chunk with parent reference
@@ -656,18 +664,34 @@ public class PatternBasedStrategy : IChunkingStrategy
             chunkMap[chunkWithParent.Id] = chunkWithParent;
         }
 
-        // Second pass: Update children collections to reference the final chunks
+        // Second pass: Group children by parent id in O(N), then assign in O(1) per chunk.
+        var childrenByParent = new Dictionary<Guid, List<ChunkNode>>();
+        foreach (var chunk in result)
+        {
+            if (chunk.ParentId.HasValue)
+            {
+                if (!childrenByParent.TryGetValue(chunk.ParentId.Value, out var list))
+                {
+                    list = new List<ChunkNode>();
+                    childrenByParent[chunk.ParentId.Value] = list;
+                }
+                list.Add(chunk);
+            }
+        }
+
         for (int i = 0; i < result.Count; i++)
         {
             var chunk = result[i];
 
-            // Find all children from the final result list
-            var children = result.Where(c => c.ParentId == chunk.Id).ToList();
+            // Look up children via the prebuilt index instead of result.Where(...)
+            List<ChunkNode>? children;
+            childrenByParent.TryGetValue(chunk.Id, out children);
+            var childrenReadOnly = (children ?? new List<ChunkNode>()).AsReadOnly();
 
             // Update the chunk with the correct children references
             var updatedChunk = chunk with
             {
-                Children = children.AsReadOnly()
+                Children = childrenReadOnly
             };
 
             result[i] = updatedChunk;
