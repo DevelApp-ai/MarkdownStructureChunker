@@ -73,10 +73,15 @@ public class ASTBasedStrategy : IChunkingStrategy
         var chunks = new List<ChunkNode>();
         var chunkId = 0;
 
-        // Process blocks to create structural elements and edges
+        // The document is parsed once (above) and traversed by two intentionally
+        // separate passes that emit different representations: the structure pass
+        // builds StructuralElements + graph edges with heading-stack relationship
+        // logic, while the chunk pass builds flat backward-compatible ChunkNodes.
+        // They are kept distinct because merging them would couple two different
+        // traversal semantics and risk drifting the outputs pinned by
+        // ASTBasedStrategyTests / ASTBasedStrategyImprovedTests. Both passes share
+        // the same parsed AST, so the cost is a second walk, not a second parse.
         ProcessBlockToStructure(document, text, sourceId, elements, edges, null);
-
-        // Also create traditional chunks for backward compatibility
         ProcessBlock(document, text, sourceId, chunks, ref chunkId, null, 0);
 
         return (elements, edges, chunks);
