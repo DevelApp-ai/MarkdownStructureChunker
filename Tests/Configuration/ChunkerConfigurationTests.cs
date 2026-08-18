@@ -23,6 +23,7 @@ public class ChunkerConfigurationTests
         Assert.Equal(10, config.MaxKeywordsPerChunk);
         Assert.True(config.CalculateOffsets);
         Assert.False(config.PreserveOriginalMarkdown);
+        Assert.Equal(KeywordExtractorType.Simple, config.KeywordExtractor);
     }
 
     [Fact]
@@ -239,5 +240,11 @@ public class ChunkerConfigurationTests
         Assert.False(config.CalculateOffsets);
         Assert.True(config.PreserveOriginalMarkdown);
     }
-}
 
+    [Fact]
+    public void KeywordExtractor_Default_IsSimple()
+    {
+        var config = new ChunkerConfiguration();
+        Assert.Equal(KeywordExtractorType.Simple, config.KeywordExtractor);
+    }
+}

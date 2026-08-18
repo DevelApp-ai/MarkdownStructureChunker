@@ -93,12 +93,17 @@ public class StructureChunker : IDisposable
         if (!config.ExtractKeywords)
         {
             // Return a no-op extractor if keywords are disabled
-            return new SimpleKeywordExtractor(); // We'll enhance this to respect MaxKeywordsPerChunk
+            return new SimpleKeywordExtractor();
         }
 
-        // For now, use SimpleKeywordExtractor
-        // TODO: In future versions, we could use MLNetKeywordExtractor based on config
-        return new SimpleKeywordExtractor();
+        // Honor the configured extractor type. Previously this always returned
+        // SimpleKeywordExtractor regardless of intent, so callers that constructed an
+        // MLNetKeywordExtractor and passed a configuration silently lost ML extraction.
+        return config.KeywordExtractor switch
+        {
+            KeywordExtractorType.MLNet => new MLNetKeywordExtractor(),
+            _ => new SimpleKeywordExtractor()
+        };
     }
 
     /// <summary>
