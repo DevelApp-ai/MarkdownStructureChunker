@@ -16,6 +16,10 @@ public class StructureChunker : IDisposable
     private readonly IChunkingStrategy _chunkingStrategy;
     private readonly IKeywordExtractor _keywordExtractor;
     private readonly ChunkerConfiguration? _configuration;
+    // Compiled regex cache for SectionKeywordMappings, built lazily to avoid recompiling
+    // the same pattern for every chunk. Mirrors the Compiled | IgnoreCase + timeout approach
+    // already used in KeywordValidator.
+    private readonly Dictionary<string, System.Text.RegularExpressions.Regex> _sectionPatternCache = new(StringComparer.Ordinal);
     private bool _disposed = false;
 
     /// <summary>
@@ -49,6 +53,24 @@ public class StructureChunker : IDisposable
     }
 
     /// <summary>
+    /// Gets a compiled, cached <see cref="System.Text.RegularExpressions.Regex"/> for a section
+    /// keyword mapping pattern. Compiled once per unique pattern with a 1-second match timeout,
+    /// replacing the previous per-chunk allocation of an un-compiled regex without a timeout.
+    /// </summary>
+    private System.Text.RegularExpressions.Regex GetSectionPattern(string pattern)
+    {
+        if (!_sectionPatternCache.TryGetValue(pattern, out var regex))
+        {
+            regex = new System.Text.RegularExpressions.Regex(
+                pattern,
+                System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                TimeSpan.FromSeconds(1));
+            _sectionPatternCache[pattern] = regex;
+        }
+        return regex;
+    }
+
+    /// <summary>
     /// Creates a chunking strategy based on the provided configuration.
     /// </summary>
     /// <param name="config">The configuration to use</param>
@@ -71,12 +93,17 @@ public class StructureChunker : IDisposable
         if (!config.ExtractKeywords)
         {
             // Return a no-op extractor if keywords are disabled
-            return new SimpleKeywordExtractor(); // We'll enhance this to respect MaxKeywordsPerChunk
+            return new SimpleKeywordExtractor();
         }
 
-        // For now, use SimpleKeywordExtractor
-        // TODO: In future versions, we could use MLNetKeywordExtractor based on config
-        return new SimpleKeywordExtractor();
+        // Honor the configured extractor type. Previously this always returned
+        // SimpleKeywordExtractor regardless of intent, so callers that constructed an
+        // MLNetKeywordExtractor and passed a configuration silently lost ML extraction.
+        return config.KeywordExtractor switch
+        {
+            KeywordExtractorType.MLNet => new MLNetKeywordExtractor(),
+            _ => new SimpleKeywordExtractor()
+        };
     }
 
     /// <summary>
@@ -301,7 +328,7 @@ public class StructureChunker : IDisposable
             {
                 try
                 {
-                    var regex = new System.Text.RegularExpressions.Regex(mapping.Key, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    var regex = GetSectionPattern(mapping.Key);
                     if (regex.IsMatch(chunk.CleanTitle))
                     {
                         allKeywords.AddRange(mapping.Value);

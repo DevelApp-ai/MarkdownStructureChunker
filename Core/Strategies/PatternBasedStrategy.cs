@@ -67,17 +67,15 @@ public class PatternBasedStrategy : IChunkingStrategy
         var contextStack = new Stack<ChunkNode>();
         var currentContent = new StringBuilder();
 
-        // Track character positions for offset calculation
-        var currentOffset = 0;
-        var lineOffsets = new List<int>();
-
-        // Calculate line start positions
-        lineOffsets.Add(0);
-        for (int i = 0; i < lines.Length - 1; i++)
-        {
-            currentOffset += lines[i].Length + Environment.NewLine.Length;
-            lineOffsets.Add(currentOffset);
-        }
+        // Track character positions for offset calculation. The offset for each
+        // emitted line index must match the original document text exactly,
+        // independent of the platform's Environment.NewLine (which is 2 chars on
+        // Windows but 1 on Unix). Splitting on {'\r','\n'} yields an empty entry
+        // for every \r\n pair, so using a fixed Environment.NewLine.Length per line
+        // drifts the computed offsets away from the real character positions and
+        // corrupts StartOffset/EndOffset/OriginalMarkdown. Instead we walk the
+        // original text once and record the real start offset of every split line.
+        var lineOffsets = ComputeLineOffsets(text, lines);
 
         // Create a root chunk to handle content before the first heading
         var rootChunk = new ChunkNode
@@ -110,9 +108,22 @@ public class PatternBasedStrategy : IChunkingStrategy
 
                     if (!string.IsNullOrEmpty(contentToAdd))
                     {
-                        // Calculate content offsets
+                        // Calculate content offsets. The content ends just before the line
+                        // terminator that precedes the current heading line, so we step
+                        // back over a \r\n / \r / \n sequence from the heading offset
+                        // (delimiter-aware, unlike the previous Environment.NewLine.Length
+                        // subtraction which drifted on cross-platform line endings).
                         var contentStartOffset = lineOffsets[contentStartLine];
-                        var contentEndOffset = lineIndex > 0 ? lineOffsets[lineIndex] - Environment.NewLine.Length : lineOffsets[lineIndex];
+                        var contentEndOffset = lineOffsets[lineIndex];
+                        if (lineIndex > 0 && contentEndOffset > 0)
+                        {
+                            int back = contentEndOffset;
+                            if (back - 1 >= 0 && text[back - 1] == '\n')
+                                back--;
+                            if (back - 1 >= 0 && text[back - 1] == '\r')
+                                back--;
+                            contentEndOffset = back;
+                        }
 
                         var updatedChunk = currentChunk with
                         {
@@ -126,7 +137,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                         };
 
                         // Update the chunk in the results if it exists
-                        var index = chunks.FindIndex(c => c.Id == currentChunk.Id);
+                        var index = chunkIndexById.TryGetValue(currentChunk.Id, out var idx1) ? idx1 : -1;
                         if (index >= 0)
                         {
                             chunks[index] = updatedChunk;
@@ -204,7 +215,7 @@ public class PatternBasedStrategy : IChunkingStrategy
                 };
 
                 // Update the chunk in the results if it exists
-                var index = chunks.FindIndex(c => c.Id == currentChunk.Id);
+                var index = chunkIndexById.TryGetValue(currentChunk.Id, out var idx2) ? idx2 : -1;
                 if (index >= 0)
                 {
                     chunks[index] = updatedChunk;
@@ -632,17 +643,25 @@ public class PatternBasedStrategy : IChunkingStrategy
             return chunks;
 
         // Create the final result list that will maintain consistent object references
-        var result = new List<ChunkNode>();
-        var chunkMap = new Dictionary<Guid, ChunkNode>();
+        var result = new List<ChunkNode>(chunks.Count);
+        var chunkMap = new Dictionary<Guid, ChunkNode>(chunks.Count);
 
-        // First pass: Create all chunks with parent references but empty children
+        // First pass: Create all chunks with parent references but empty children.
+        // Parent lookup is O(1) via the source-id map instead of a linear scan over `chunks`
+        // for every node (the previous `chunks.FirstOrDefault(...)` was O(N^2)).
+        var sourceById = new Dictionary<Guid, ChunkNode>(chunks.Count);
         foreach (var chunk in chunks)
         {
-            // Find parent
+            sourceById[chunk.Id] = chunk;
+        }
+
+        foreach (var chunk in chunks)
+        {
+            // Find parent from the prebuilt id map (O(1))
             ChunkNode? parent = null;
             if (chunk.ParentId.HasValue)
             {
-                parent = chunks.FirstOrDefault(c => c.Id == chunk.ParentId.Value);
+                sourceById.TryGetValue(chunk.ParentId.Value, out parent);
             }
 
             // Create chunk with parent reference
@@ -656,18 +675,34 @@ public class PatternBasedStrategy : IChunkingStrategy
             chunkMap[chunkWithParent.Id] = chunkWithParent;
         }
 
-        // Second pass: Update children collections to reference the final chunks
+        // Second pass: Group children by parent id in O(N), then assign in O(1) per chunk.
+        var childrenByParent = new Dictionary<Guid, List<ChunkNode>>();
+        foreach (var chunk in result)
+        {
+            if (chunk.ParentId.HasValue)
+            {
+                if (!childrenByParent.TryGetValue(chunk.ParentId.Value, out var list))
+                {
+                    list = new List<ChunkNode>();
+                    childrenByParent[chunk.ParentId.Value] = list;
+                }
+                list.Add(chunk);
+            }
+        }
+
         for (int i = 0; i < result.Count; i++)
         {
             var chunk = result[i];
 
-            // Find all children from the final result list
-            var children = result.Where(c => c.ParentId == chunk.Id).ToList();
+            // Look up children via the prebuilt index instead of result.Where(...)
+            List<ChunkNode>? children;
+            childrenByParent.TryGetValue(chunk.Id, out children);
+            var childrenReadOnly = (children ?? new List<ChunkNode>()).AsReadOnly();
 
             // Update the chunk with the correct children references
             var updatedChunk = chunk with
             {
-                Children = children.AsReadOnly()
+                Children = childrenReadOnly
             };
 
             result[i] = updatedChunk;
@@ -691,6 +726,33 @@ public class PatternBasedStrategy : IChunkingStrategy
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Computes the exact character offset of each line produced by splitting
+    /// <paramref name="text"/> on '\r' and '\n'. This is delimiter-aware (handles
+    /// "\r\n", "\r", and "\n" without over- or under-counting), so the resulting
+    /// offsets match the original text regardless of the host platform's
+    /// <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <param name="text">The original document text</param>
+    /// <param name="lines">The lines produced by splitting <paramref name="text"/></param>
+    /// <returns>A list where index i holds the character offset of <c>lines[i]</c></returns>
+    private static List<int> ComputeLineOffsets(string text, string[] lines)
+    {
+        var offsets = new List<int>(lines.Length);
+        int pos = 0;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            offsets.Add(pos);
+            pos += lines[i].Length;
+            // Consume the line terminator(s) that separated this line from the next.
+            if (pos < text.Length && text[pos] == '\r')
+                pos++;
+            if (pos < text.Length && text[pos] == '\n')
+                pos++;
+        }
+        return offsets;
     }
 
     /// <summary>

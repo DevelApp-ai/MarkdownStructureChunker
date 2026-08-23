@@ -1,6 +1,20 @@
 namespace MarkdownStructureChunker.Core.Configuration;
 
 /// <summary>
+/// Selects which <see cref="Interfaces.IKeywordExtractor"/> implementation the
+/// configuration-based <see cref="StructureChunker"/> constructor wires up.
+/// Defaults to <see cref="Simple"/> to preserve existing behavior.
+/// </summary>
+public enum KeywordExtractorType
+{
+    /// <summary>Frequency-based extraction (default).</summary>
+    Simple = 0,
+    /// <summary>ML.NET text pipeline extraction.</summary>
+    MLNet = 1
+}
+
+
+/// <summary>
 /// Configuration class for controlling chunking behavior and parameters.
 /// </summary>
 public class ChunkerConfiguration
@@ -63,6 +77,15 @@ public class ChunkerConfiguration
     /// Default is 10.
     /// </summary>
     public int MaxKeywordsPerChunk { get; set; } = 10;
+
+    /// <summary>
+    /// Gets or sets which keyword extractor implementation the configuration-based
+    /// <see cref="StructureChunker"/> constructor should instantiate.
+    /// Has no effect when <see cref="ExtractKeywords"/> is false, or when the chunker
+    /// is constructed with an explicit <see cref="Interfaces.IKeywordExtractor"/> instance.
+    /// Default is <see cref="KeywordExtractorType.Simple"/>.
+    /// </summary>
+    public KeywordExtractorType KeywordExtractor { get; set; } = KeywordExtractorType.Simple;
 
     /// <summary>
     /// Gets or sets whether to calculate precise character offsets for chunks.

@@ -316,4 +316,47 @@ public class StructureChunkerConfigurationTests
         Assert.Equal("test-doc", result.SourceId);
         Assert.NotEmpty(result.Chunks);
     }
+
+    [Fact]
+    public void Constructor_WithMlNetExtractor_WiresMlNetExtractor()
+    {
+        // Arrange: previously the configuration-based constructor always used
+        // SimpleKeywordExtractor regardless of intent, so an explicitly-requested
+        // ML.NET extractor was silently discarded. This guards the wiring fix.
+        var config = new ChunkerConfiguration
+        {
+            ExtractKeywords = true,
+            KeywordExtractor = KeywordExtractorType.MLNet
+        };
+
+        // Act
+        using var chunker = new StructureChunker(config);
+
+        // Assert: the privately-wired extractor is the configured type.
+        var extractorField = typeof(StructureChunker).GetField(
+            "_keywordExtractor",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(extractorField);
+        var extractor = extractorField!.GetValue(chunker);
+        Assert.IsType<MarkdownStructureChunker.Core.Extractors.MLNetKeywordExtractor>(extractor);
+    }
+
+    [Fact]
+    public void Constructor_WithSimpleExtractor_WiresSimpleExtractor()
+    {
+        var config = new ChunkerConfiguration
+        {
+            ExtractKeywords = true,
+            KeywordExtractor = KeywordExtractorType.Simple
+        };
+
+        using var chunker = new StructureChunker(config);
+
+        var extractorField = typeof(StructureChunker).GetField(
+            "_keywordExtractor",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(extractorField);
+        var extractor = extractorField!.GetValue(chunker);
+        Assert.IsType<MarkdownStructureChunker.Core.Extractors.SimpleKeywordExtractor>(extractor);
+    }
 }
