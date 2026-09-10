@@ -38,6 +38,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// <param name="modelPath">Optional path to the ONNX model file. If null or invalid, the vectorizer will operate in fallback mode.</param>
     /// <param name="tokenizerPath">Optional path to the tokenizer files. If null, uses built-in tokenization.</param>
     /// <param name="maxSequenceLength">Maximum sequence length for tokenization (default: 512).</param>
+    /// <param name="logger">Optional logger for diagnostic messages. If null, a no-op logger is used.</param>
     public OnnxVectorizer(string? modelPath = null, string? tokenizerPath = null, int maxSequenceLength = 512, IChunkerLogger? logger = null)
     {
         _maxSequenceLength = maxSequenceLength;
@@ -94,7 +95,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="modelPath">Path to the model file</param>
     /// <returns>True if the model is valid, false otherwise</returns>
-    private static bool ValidateModelFile(string modelPath)
+    private bool ValidateModelFile(string modelPath)
     {
         try
         {
@@ -135,7 +136,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="tokenizerPath">Path to tokenizer files</param>
     /// <returns>Tokenizer instance or null if unavailable</returns>
-    private static Tokenizer? LoadTokenizer(string? tokenizerPath)
+    private Tokenizer? LoadTokenizer(string? tokenizerPath)
     {
         try
         {
@@ -588,7 +589,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="vector">Vector to normalize</param>
     /// <returns>L2 normalized vector</returns>
-    private static float[] NormalizeVectorL2(float[] vector)
+    private float[] NormalizeVectorL2(float[] vector)
     {
         // Calculate L2 norm (Euclidean length)
         var sumOfSquares = vector.Sum(x => x * x);
@@ -766,6 +767,7 @@ public static class OnnxVectorizerFactory
     /// <param name="modelPath">Path to the ONNX model file</param>
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
     /// <param name="maxSequenceLength">Maximum sequence length for tokenization</param>
+    /// <param name="logger">Optional logger for diagnostic messages. If null, a no-op logger is used.</param>
     /// <returns>A new OnnxVectorizer instance</returns>
     public static OnnxVectorizer CreateWithPaths(string modelPath, string? tokenizerPath = null, int maxSequenceLength = 512, IChunkerLogger? logger = null)
     {
@@ -787,6 +789,7 @@ public static class OnnxVectorizerFactory
     /// </summary>
     /// <param name="modelPath">Path to the ONNX model file</param>
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
+    /// <param name="logger">Optional logger for diagnostic messages. If null, a no-op logger is used.</param>
     /// <returns>A new OnnxVectorizer instance optimized for short text</returns>
     public static OnnxVectorizer CreateForShortText(string? modelPath = null, string? tokenizerPath = null, IChunkerLogger? logger = null)
     {
@@ -798,6 +801,7 @@ public static class OnnxVectorizerFactory
     /// </summary>
     /// <param name="modelPath">Path to the ONNX model file</param>
     /// <param name="tokenizerPath">Path to the tokenizer directory</param>
+    /// <param name="logger">Optional logger for diagnostic messages. If null, a no-op logger is used.</param>
     /// <returns>A new OnnxVectorizer instance optimized for long text</returns>
     public static OnnxVectorizer CreateForLongText(string? modelPath = null, string? tokenizerPath = null, IChunkerLogger? logger = null)
     {

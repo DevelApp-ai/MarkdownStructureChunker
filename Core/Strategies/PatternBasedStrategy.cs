@@ -64,6 +64,7 @@ public class PatternBasedStrategy : IChunkingStrategy
 
         var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
         var chunks = new List<ChunkNode>();
+        var chunkIndexById = new Dictionary<Guid, int>();
         var contextStack = new Stack<ChunkNode>();
         var currentContent = new StringBuilder();
 
@@ -181,6 +182,7 @@ public class PatternBasedStrategy : IChunkingStrategy
 
                 // Add to results and push to stack
                 chunks.Add(chunkWithParent);
+                chunkIndexById[chunkWithParent.Id] = chunks.Count - 1;
                 contextStack.Push(chunkWithParent);
 
                 // Reset content tracking
