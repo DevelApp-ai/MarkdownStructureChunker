@@ -3,6 +3,7 @@ using BenchmarkDotNet.Running;
 using MarkdownStructureChunker.Core;
 using MarkdownStructureChunker.Core.Configuration;
 using MarkdownStructureChunker.Core.Extractors;
+using MarkdownStructureChunker.Core.Models;
 using MarkdownStructureChunker.Core.Strategies;
 
 namespace MarkdownStructureChunker.Benchmarks;

@@ -428,7 +428,7 @@ This section describes the methodology.";
         foreach (var chunk in chunks)
         {
             Assert.InRange(chunk.StartOffset, 0, text.Length);
-            Assert.True(chunk.EndOffset >= chunk.StartOffset);
+            Assert.True(chunk.EndOffset >= chunk.StartOffset, $"[{_label}] EndOffset before StartOffset");
 
             // The heading marker must be found at StartOffset in the original text.
             var at = text.Substring(chunk.StartOffset);
