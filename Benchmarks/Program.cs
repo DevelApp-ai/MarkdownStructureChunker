@@ -56,15 +56,15 @@ public class ChunkingBenchmarks
     };
 
     [Benchmark(Description = "PatternBasedStrategy.ProcessText (no offsets)")]
-    public IReadOnlyList<Models.ChunkNode> ProcessText_NoOffsets() =>
+    public IReadOnlyList<ChunkNode> ProcessText_NoOffsets() =>
         _strategy.ProcessText(Document, "bench");
 
     [Benchmark(Description = "PatternBasedStrategy.ProcessText (offsets + original markdown)")]
-    public IReadOnlyList<Models.ChunkNode> ProcessText_WithOffsets() =>
+    public IReadOnlyList<ChunkNode> ProcessText_WithOffsets() =>
         _strategyWithOffsets.ProcessText(Document, "bench");
 
     [Benchmark(Description = "StructureChunker.ProcessAsync (full pipeline + keywords)")]
-    public Task<Models.DocumentGraph> ProcessAsync_FullPipeline() =>
+    public Task<DocumentGraph> ProcessAsync_FullPipeline() =>
         _chunker.ProcessAsync(Document, "bench");
 
     private static string BuildDocument(int sections, int paragraphsPerSection)
