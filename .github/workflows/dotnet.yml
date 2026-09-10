@@ -100,13 +100,8 @@ jobs:
     - name: Enforce minimum line coverage
       # Prevent silent coverage regressions. Threshold starts low and can be raised as coverage improves.
       run: |
-        LINECOV=$(grep -o 'line-rate="[0-9.]*"' coverage-report/Cobertura.xml | head -1 | grep -o '[0-9.]*')
-        echo "Line coverage: ${LINECOV}%"
-        THRESHOLD=40
-        if (( $(echo "$LINECOV < $THRESHOLD" | bc -l) )); then
-          echo "::error::Line coverage ${LINECOV}% is below the required ${THRESHOLD}% threshold."
-          exit 1
-        fi
+        RATE=$(grep -oE 'line-rate="[0-9]+(\.[0-9]+)?"' coverage-report/Cobertura.xml | head -1 | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
+        awk -v rate="$RATE" -v thresh=40 'BEGIN{pct=rate*100; printf "Line coverage: %.2f%%\n", pct; if (pct+0 < thresh+0){printf "::error::Line coverage %.2f%% is below the required %d%% threshold.\n", pct, thresh; exit 1} exit 0}'
       shell: bash
 
     - name: Upload coverage report
