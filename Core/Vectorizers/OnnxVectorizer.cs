@@ -94,7 +94,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="modelPath">Path to the model file</param>
     /// <returns>True if the model is valid, false otherwise</returns>
-    private static bool ValidateModelFile(string modelPath)
+    private bool ValidateModelFile(string modelPath)
     {
         try
         {
@@ -135,7 +135,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="tokenizerPath">Path to tokenizer files</param>
     /// <returns>Tokenizer instance or null if unavailable</returns>
-    private static Tokenizer? LoadTokenizer(string? tokenizerPath)
+    private Tokenizer? LoadTokenizer(string? tokenizerPath)
     {
         try
         {
@@ -588,7 +588,7 @@ public class OnnxVectorizer : ILocalVectorizer, IDisposable
     /// </summary>
     /// <param name="vector">Vector to normalize</param>
     /// <returns>L2 normalized vector</returns>
-    private static float[] NormalizeVectorL2(float[] vector)
+    private float[] NormalizeVectorL2(float[] vector)
     {
         // Calculate L2 norm (Euclidean length)
         var sumOfSquares = vector.Sum(x => x * x);
