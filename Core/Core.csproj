@@ -30,7 +30,7 @@
       - Comprehensive automated test suite (248 tests currently)
       - Robust error handling and resource management
     </PackageReleaseNotes>
-    <Copyright>Copyright © 2025 DevelApp</Copyright>
+    <Copyright>Copyright © 2025 DevelApp.ai ApS</Copyright>
     <AssemblyTitle>MarkdownStructureChunker</AssemblyTitle>
     <AssemblyDescription>Intelligent document structure analysis and chunking library</AssemblyDescription>
     
