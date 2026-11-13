@@ -1,3 +1,8 @@
+# NOTE (2026-11-13): Certum SimplySign login sessions must not overlap
+# across repos - concurrent sign jobs collide on the OTP session and fail
+# after ~4 min of retries (the 2026-11-12 batch-push incident), and even
+# sequential sign jobs need several minutes of cooldown (2026-11-13).
+# Trigger signing repos one at a time, well spaced.
 name: .NET CI/CD
 
 # Package releases follow org decisions DevelApp-ai/DevelApp-Repo-Global#38
