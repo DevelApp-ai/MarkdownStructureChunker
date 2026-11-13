@@ -50,13 +50,16 @@ jobs:
       # NuGet.org push off per org decision #73 - so nothing ever reaches
       # nuget.org (2026-11-13 incident). 5.12.0 + useConfigFile computes the
       # intended stable versions (proven setup in CognitiveGraph).
-      uses: gittools/actions/gitversion/setup@v4.7.0
+      # NOTE: GitVersion 5.x also needs the @v0 action major - the v4.x
+      # gitversion action enforces >=6.2.0 <7.0.0 (PR #85 CI failure,
+      # 2026-11-13).
+      uses: gittools/actions/gitversion/setup@v0
       with:
         versionSpec: '5.12.0'
 
     - name: Determine Version
       id: gitversion # The output of this step is used later
-      uses: gittools/actions/gitversion/execute@v4.7.0
+      uses: gittools/actions/gitversion/execute@v0
       with:
         useConfigFile: true # load the legacy GitVersion.yml (5.x semantics)
 
@@ -289,13 +292,16 @@ jobs:
       # NuGet.org push off per org decision #73 - so nothing ever reaches
       # nuget.org (2026-11-13 incident). 5.12.0 + useConfigFile computes the
       # intended stable versions (proven setup in CognitiveGraph).
-      uses: gittools/actions/gitversion/setup@v4.7.0
+      # NOTE: GitVersion 5.x also needs the @v0 action major - the v4.x
+      # gitversion action enforces >=6.2.0 <7.0.0 (PR #85 CI failure,
+      # 2026-11-13).
+      uses: gittools/actions/gitversion/setup@v0
       with:
         versionSpec: '5.12.0'
 
     - name: Determine Version
       id: gitversion
-      uses: gittools/actions/gitversion/execute@v4.7.0
+      uses: gittools/actions/gitversion/execute@v0
       with:
         useConfigFile: true # same version as the build job
 
