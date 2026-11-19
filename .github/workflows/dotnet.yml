@@ -195,7 +195,7 @@ jobs:
 
     steps:
     - name: Download package
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: nuget-packages-unsigned
         path: packages/
@@ -306,13 +306,13 @@ jobs:
         useConfigFile: true # same version as the build job
 
     - name: Download signed packages
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: nuget-packages-signed
         path: artifacts/
 
     - name: Download symbol packages
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: symbol-packages
         path: artifacts/
